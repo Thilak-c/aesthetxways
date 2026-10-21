@@ -35,6 +35,7 @@ const loveloBlack = localFont({
 });
 
 export const metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://aesthetxways.com'),
   title: "Aesthetx Ways | Home Page",
   description: "Sleek, minimalistic clothing, footwear, headwear, and eyewear.",
 };
