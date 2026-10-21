@@ -1,6 +1,23 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { convexClient } from '@/lib/convex';
+import crypto from 'crypto';
+
+// In-memory rate limiting: max 3 requests per 10 minutes per email
+const otpRateLimitMap = new Map();
+
+function isRateLimited(email) {
+  const now = Date.now();
+  const windowMs = 10 * 60 * 1000;
+  const history = otpRateLimitMap.get(email) || [];
+  const recent = history.filter((ts) => now - ts < windowMs);
+  if (recent.length >= 3) {
+    return true;
+  }
+  recent.push(now);
+  otpRateLimitMap.set(email, recent);
+  return false;
+}
 
 const transporter = nodemailer.createTransport({
   host: "smtp.hostinger.com",
@@ -33,8 +50,16 @@ export async function POST(request) {
       );
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Rate limit check
+    if (isRateLimited(emailTrimmed)) {
+      return NextResponse.json(
+        { success: false, message: 'Too many OTP requests. Please wait a few minutes before trying again.' },
+        { status: 429 }
+      );
+    }
+
+    // Generate cryptographically secure 6-digit OTP
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes ISO string
 
     // Save OTP to Convex

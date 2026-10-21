@@ -301,8 +301,11 @@ export default function HomeClient() {
         setLoading(true);
         const url = `/api/products?category=All&search=${encodeURIComponent(searchQuery)}`;
         const res = await fetch(url);
-        const data = await res.json();
-        if (data.success) {
+        if (!res.ok) return;
+        const text = await res.text();
+        if (!text || !text.trim()) return;
+        const data = JSON.parse(text);
+        if (data.success && Array.isArray(data.products)) {
           setAllProducts(data.products);
         }
       } catch (err) {
@@ -565,21 +568,6 @@ export default function HomeClient() {
 
   return (
     <div className="flex flex-col flex-1 bg-white">
-      {/* Sleek Top Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-zinc-100 px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="text-[16px] tracking-wider uppercase font-lovelo-black text-black hover:opacity-80 transition-opacity">
-          Aesthetx Ways
-        </Link>
-        <div className="flex items-center gap-3 pr-24">
-          <button
-            onClick={() => setSearchOpen(!searchOpen)}
-            className="text-zinc-900 hover:text-black transition-colors"
-            aria-label="Search"
-          >
-            <Search className="w-3.5 h-3.5 stroke-[2.5]" />
-          </button>
-        </div>
-      </header>
 
       {/* Conditionally Render Search Bar with Smooth Slide/Fade Animation */}
       <div

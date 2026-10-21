@@ -22,6 +22,7 @@ export default function BottomNav() {
     setMounted(true);
   }, []);
 
+
   // Helper to determine if a route is active
   const isActive = (path) => {
     if (path === '/') {
@@ -126,6 +127,11 @@ export default function BottomNav() {
       });
     }
   }, [pathname, isTransitioning, targetPath]);
+
+  // Hide BottomNav on Cart and Checkout pages so it doesn't overlap the Proceed to Buy / Pay button
+  if (pathname === '/cart' || pathname === '/checkout') {
+    return null;
+  }
 
   return (
     <>

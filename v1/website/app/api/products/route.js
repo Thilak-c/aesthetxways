@@ -2,14 +2,19 @@ import { NextResponse } from 'next/server';
 import { convexClient } from '@/lib/convex';
 
 export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const category = searchParams.get('category');
+  const search = searchParams.get('search');
+
   try {
-    const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
-    const search = searchParams.get('search');
-    
-    // Fetch products from Convex using the webStore:getAllProducts query
-    // Passing a large limit to retrieve all products for client filtering
-    let products = await convexClient.query('webStore:getAllProducts', { limit: 1000 });
+    // Fetch products from Convex with a 2.5s timeout to gracefully fallback if Convex is offline
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Convex query timeout')), 2500)
+    );
+    let products = await Promise.race([
+      convexClient.query('webStore:getAllProducts', { limit: 1000 }),
+      timeoutPromise,
+    ]);
     
     // Ensure we filter out hidden and deleted products (just in case they aren't by the query)
     products = products.filter(p => !p.isHidden && !p.isDeleted);
@@ -38,7 +43,7 @@ export async function GET(request) {
     
     return NextResponse.json({ success: true, products });
   } catch (error) {
-    console.error('Failed to fetch products from Convex, falling back to mock data:', error);
+    console.error('Failed to fetch products from Convex, falling back to mock data:', error?.message || error);
     
     // Premium mock products for offline local testing
     const mockProducts = [
@@ -50,7 +55,9 @@ export async function GET(request) {
         category: "apparel",
         price: 3200,
         inStock: true,
-        color: "Vintage Grey"
+        color: "Vintage Grey",
+        availableSizes: ["S", "M", "L", "XL"],
+        sizeStock: { "S": 10, "M": 0, "L": 8, "XL": 4 }
       },
       {
         _id: "mock-black",
@@ -60,7 +67,9 @@ export async function GET(request) {
         category: "apparel",
         price: 3000,
         inStock: true,
-        color: "Faded Black"
+        color: "Faded Black",
+        availableSizes: ["S", "M", "L", "XL"],
+        sizeStock: { "S": 0, "M": 12, "L": 6, "XL": 3 }
       },
       {
         _id: "mock-glacier",
@@ -70,7 +79,9 @@ export async function GET(request) {
         category: "apparel",
         price: 3400,
         inStock: true,
-        color: "Glacier Blue"
+        color: "Glacier Blue",
+        availableSizes: ["S", "M", "L", "XL"],
+        sizeStock: { "S": 5, "M": 7, "L": 0, "XL": 2 }
       }
     ];
     

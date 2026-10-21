@@ -20,45 +20,47 @@ import Footer from '@/components/Footer';
 const STORES = [
   {
     id: 'patna',
-    name: 'AesthetXways Patna Flagship',
-    type: 'Concept Drop-Center & HQ',
-    address: 'Grand Chandra, Fraser Road Area,\nPatna, Bihar 800001',
-    phone: '+91 91539 90059',
-    rating: '4.9',
-    reviewsCount: '284',
-    coordinates: '25.6121° N, 85.1376° E',
-    transitInfo: '5 mins from Patna Junction (PTJR)',
+    name: 'AESTHETX WAYS ( PATNA )',
+    type: 'Clothing store in Patna, Bihar',
+    address: 'Kankarbagh Colony More, Kankarbagh, Ghrounda, Patna, Bihar 800001',
+    phone: '070337 69997',
+    rating: '4.8',
+    reviewsCount: '18',
+    coordinates: '25.5941° N, 85.1376° E',
+    transitInfo: '17 mins travel time from Patna Junction',
+    details: 'Located at Kankarbagh Colony More, near critical city transit nodes.',
     hours: [
-      { day: 'Monday', time: '10:30 AM - 10:30 PM' },
-      { day: 'Tuesday', time: '10:30 AM - 10:30 PM' },
-      { day: 'Wednesday', time: '10:30 AM - 10:30 PM' },
-      { day: 'Thursday', time: '10:30 AM - 10:30 PM' },
-      { day: 'Friday', time: '10:30 AM - 11:30 PM' },
-      { day: 'Saturday', time: '10:30 AM - 11:30 PM' },
-      { day: 'Sunday', time: '10:30 AM - 11:00 PM' }
+      { day: 'Monday', time: '10:30 am – 10:30 pm' },
+      { day: 'Tuesday', time: '10:30 am – 10:30 pm' },
+      { day: 'Wednesday', time: '10:30 am – 10:30 pm' },
+      { day: 'Thursday', time: '10:30 am – 10:30 pm' },
+      { day: 'Friday', time: '10:30 am – 10:30 pm' },
+      { day: 'Saturday', time: '10:30 am – 10:30 pm' },
+      { day: 'Sunday', time: '10:30 am – 10:30 pm' }
     ],
-    directionsUrl: 'https://maps.google.com/?q=Grand+Chandra+Fraser+Road+Patna'
+    directionsUrl: 'https://maps.google.com/?q=AESTHETX+WAYS+Kankarbagh+Colony+More+Kankarbagh+Ghrounda+Patna+Bihar+800001'
   },
   {
     id: 'gaya',
-    name: 'AesthetXways Gaya Store',
-    type: 'Express Retail Hub',
-    address: 'G.B. Road, Near Tower Chowk,\nGaya, Bihar 823001',
-    phone: '+91 91539 90060',
-    rating: '4.8',
-    reviewsCount: '196',
-    coordinates: '24.7955° N, 84.9974° E',
-    transitInfo: '8 mins from Gaya Junction (GAYA)',
+    name: 'AESTHETX WAYS ( WAVES )',
+    type: 'Clothing store in Gaya, Bihar',
+    address: 'Located in: Gaya Railway station\nR232+WF4, Gaya Station Campus Rd, Gol Bagicha, Gaya, Bihar 823002',
+    phone: '070337 69997',
+    rating: '4.7',
+    reviewsCount: '50',
+    coordinates: '24.7955° N, 84.9994° E',
+    transitInfo: 'Located inside Gaya Railway Station Campus',
+    details: 'Located in the Railway Station Campus block. Quick transit streetwear hub.',
     hours: [
-      { day: 'Monday', time: '10:30 AM - 10:00 PM' },
-      { day: 'Tuesday', time: '10:30 AM - 10:00 PM' },
-      { day: 'Wednesday', time: '10:30 AM - 10:00 PM' },
-      { day: 'Thursday', time: '10:30 AM - 10:00 PM' },
-      { day: 'Friday', time: '10:30 AM - 10:30 PM' },
-      { day: 'Saturday', time: '10:30 AM - 10:30 PM' },
-      { day: 'Sunday', time: '10:30 AM - 10:00 PM' }
+      { day: 'Monday', time: '10:30 am – 10:30 pm' },
+      { day: 'Tuesday', time: '10:30 am – 10:30 pm' },
+      { day: 'Wednesday', time: '10:30 am – 10:30 pm' },
+      { day: 'Thursday', time: '10:30 am – 10:30 pm' },
+      { day: 'Friday', time: '10:30 am – 10:30 pm' },
+      { day: 'Saturday', time: '10:30 am – 10:30 pm' },
+      { day: 'Sunday', time: '10:30 am – 10:30 pm' }
     ],
-    directionsUrl: 'https://maps.google.com/?q=GB+Road+Gaya'
+    directionsUrl: 'https://maps.google.com/?q=Aesthetx+Ways+Gaya+Railway+station+Gaya+Station+Campus+Rd+Gol+Bagicha+Gaya+Bihar+823002'
   }
 ];
 

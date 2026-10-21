@@ -1,9 +1,8 @@
 import { ConvexHttpClient } from "convex/browser";
 
-const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-
-if (!convexUrl) {
-  throw new Error("Please define the NEXT_PUBLIC_CONVEX_URL environment variable inside .env.local");
-}
+const convexUrl =
+  process.env.NEXT_PUBLIC_CONVEX_URL ||
+  process.env.CONVEX_SELF_HOSTED_URL ||
+  'https://db.aesthetxways.com';
 
 export const convexClient = new ConvexHttpClient(convexUrl);

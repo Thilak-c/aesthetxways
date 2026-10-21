@@ -42,43 +42,61 @@ export function OdometerNumber({ value, className = "" }) {
 }
 
 export default function SplashWrapper({ children }) {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [mounted, setMounted] = useState(false);
-  
+
   const pathname = usePathname();
   const isCartOrProduct = pathname ? (pathname.includes('/cart') || pathname.includes('/product')) : false;
 
-  const totalDuration = isCartOrProduct ? 1500 : 3000;
-  const fadeOutTime = isCartOrProduct ? 1100 : 2600;
-
   useEffect(() => {
-    setMounted(true);
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const nextProgress = Math.min(100, (elapsed / fadeOutTime) * 100);
-      setProgress(nextProgress);
-      
-      if (elapsed >= fadeOutTime) {
-        setFadeOut(true);
-      }
-      
-      if (elapsed >= totalDuration) {
-        clearInterval(interval);
+    let interval;
+    const timer = setTimeout(() => {
+      try {
+        const alreadySeen = sessionStorage.getItem('aw_splash_seen');
+        if (alreadySeen || isCartOrProduct) {
+          setShowSplash(false);
+          return;
+        }
+        setShowSplash(true);
+        sessionStorage.setItem('aw_splash_seen', 'true');
+      } catch {
         setShowSplash(false);
+        return;
       }
-    }, 30);
 
-    return () => clearInterval(interval);
-  }, [totalDuration, fadeOutTime]);
+      const totalDuration = 700;
+      const fadeOutTime = 480;
+      const startTime = Date.now();
+
+      interval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const nextProgress = Math.min(100, (elapsed / fadeOutTime) * 100);
+        setProgress(nextProgress);
+
+        if (elapsed >= fadeOutTime) {
+          setFadeOut(true);
+        }
+
+        if (elapsed >= totalDuration) {
+          clearInterval(interval);
+          setShowSplash(false);
+        }
+      }, 20);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      if (interval) clearInterval(interval);
+    };
+  }, [isCartOrProduct]);
 
   return (
     <>
       {showSplash && (
         <div 
-          className={`fixed inset-0 z-100 max-w-[450px] mx-auto overflow-hidden ${
+          onClick={() => setShowSplash(false)}
+          className={`fixed inset-0 z-100 max-w-[450px] mx-auto overflow-hidden cursor-pointer ${
             fadeOut ? 'pointer-events-none' : 'pointer-events-auto'
           }`}
         >

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { convexClient } from '@/lib/convex';
+import crypto from 'crypto';
 
 export async function GET(request) {
   try {
@@ -10,6 +11,24 @@ export async function GET(request) {
       return NextResponse.json(
         { success: false, message: 'Email is required' },
         { status: 400 }
+      );
+    }
+
+    const emailTrimmed = email.toLowerCase().trim();
+
+    // Verify session token from Authorization header or cookie
+    const authHeader = request.headers.get('authorization') || '';
+    const cookieToken = request.cookies.get('aw_auth_token')?.value;
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const clientToken = bearerToken || cookieToken;
+
+    const secret = process.env.JWT_SECRET || 'aesthetx-secret-2024';
+    const expectedToken = crypto.createHmac('sha256', secret).update(emailTrimmed).digest('hex');
+
+    if (!clientToken || clientToken !== expectedToken) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
       );
     }
 

@@ -10,7 +10,7 @@ export async function GET() {
       message: result?.message || '',
     });
   } catch (error) {
-    console.error('Failed to fetch site status:', error);
+   
     // Default to open if there's an error (don't block the site)
     return NextResponse.json({
       success: true,

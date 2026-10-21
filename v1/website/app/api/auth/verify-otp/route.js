@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { convexClient } from '@/lib/convex';
+import crypto from 'crypto';
 
 export async function POST(request) {
   try {
@@ -28,9 +29,13 @@ export async function POST(request) {
       );
     }
 
-    return NextResponse.json({
+    const secret = process.env.JWT_SECRET || 'aesthetx-secret-2024';
+    const token = crypto.createHmac('sha256', secret).update(emailTrimmed).digest('hex');
+
+    const response = NextResponse.json({
       success: true,
       message: 'OTP verified successfully',
+      token,
       user: {
         id: result.user.id,
         name: result.user.name,
@@ -38,6 +43,16 @@ export async function POST(request) {
         role: result.user.role,
       },
     });
+
+    response.cookies.set('aw_auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      path: '/',
+    });
+
+    return response;
 
   } catch (error) {
     console.error('Error verifying OTP:', error);

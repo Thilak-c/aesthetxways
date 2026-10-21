@@ -2,7 +2,7 @@ import { Geist, Geist_Mono, Moirai_One, Oi } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import SplashWrapper from "@/components/SplashWrapper";
-import StaggeredMenu from "@/components/StaggeredMenu";
+import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import AgentationWrapper from "@/components/AgentationWrapper";
 import SiteStatusGate from "@/components/SiteStatusGate";
@@ -47,8 +47,7 @@ const menuItems = [
 ];
 
 const socialItems = [
-  { label: 'Instagram', link: 'https://instagram.com' },
-  { label: 'Twitter', link: 'https://twitter.com' }
+  { label: 'Instagram', link: 'https://instagram.com' }
 ];
 
 export default function RootLayout({ children }) {
@@ -57,6 +56,32 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${moiraiOne.variable} ${oi.variable} ${loveloBlack.variable} antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                if (typeof window !== 'undefined' && window.location.hostname.indexOf('trycloudflare.com') !== -1) {
+                  var OrigWS = window.WebSocket;
+                  window.WebSocket = function(url, protocols) {
+                    if (typeof url === 'string' && url.indexOf('_next/webpack-hmr') !== -1) {
+                      var dummy = new EventTarget();
+                      dummy.readyState = 3;
+                      dummy.close = function() {};
+                      dummy.send = function() {};
+                      setTimeout(function() {
+                        if (dummy.onclose) dummy.onclose(new CloseEvent('close'));
+                      }, 0);
+                      return dummy;
+                    }
+                    return new OrigWS(url, protocols);
+                  };
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="bg-zinc-100 sm:bg-zinc-950 sm:flex sm:justify-center sm:items-center text-zinc-950 font-sans p-0 sm:p-6 sm:overflow-hidden relative">
         {/* Premium Luxury Tech Glow Backdrop - Visible on Desktop only */}
         {/* <div className="hidden sm:block absolute inset-0  pointer-events-none z-0" /> */}
@@ -73,20 +98,7 @@ export default function RootLayout({ children }) {
           <div id="mobile-frame" className="w-full flex-1 flex flex-col relative bg-white pb-12">
             <SiteStatusGate>
               <SplashWrapper>
-                <StaggeredMenu
-                  position="right"
-                  items={menuItems}
-                  socialItems={socialItems}
-                  displaySocials={true}
-                  displayItemNumbering={false}
-                  menuButtonColor="#000"
-                  openMenuButtonColor="#000"
-                  changeMenuColorOnOpen={true}
-                  colors={['#18181b', '#27272a']}
-                  logoUrl="/logo_t.svg"
-                  accentColor="#000"
-                  isFixed={true}
-                />
+                <Header />
                 {children}
                 <BottomNav />
               </SplashWrapper>
