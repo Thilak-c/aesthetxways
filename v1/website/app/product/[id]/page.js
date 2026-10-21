@@ -846,18 +846,18 @@ export default function ProductPage({ params }) {
         <div className="border-t border-[#e5e5e5] mb-2" />
 
         {/* 4. Section 1: More From {Category} (strictly matching Image 2) */}
-        <div className="mt-7">
+        <div className="mt-8 mb-6">
           <h3
             className="text-[20px] sm:text-[22px] font-bold text-[#111111] tracking-tight mb-4 font-['Helvetica_Now_Text_Medium',sans-serif]"
             style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
           >
             {product.category?.toLowerCase() === 'apparel' || !product.category
-              ? 'More From Women Training And Gym'
+              ? 'More'
               : `More From ${product.category.charAt(0).toUpperCase() + product.category.slice(1)}`}
           </h3>
 
-          <div className="flex gap-3.5 sm:gap-4 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory -mx-4 px-4 sm:-mx-6 sm:px-6">
-            {(allCatalog.filter((p) => p.itemId !== product.itemId).length >= 2
+          <div className="flex gap-3.5 sm:gap-4 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory -mx-4 px-4 sm:-mx-6 sm:px-6 scroll-px-4 sm:scroll-px-6 after:shrink-0 after:w-4 sm:after:w-6 after:content-['']">
+            {(allCatalog.filter((p) => p.itemId !== product.itemId).length > 0
               ? allCatalog.filter((p) => p.itemId !== product.itemId)
               : allCatalog
             ).map((item, idx) => {
@@ -872,7 +872,7 @@ export default function ProductPage({ params }) {
                   className="w-[220px] sm:w-[240px] shrink-0 snap-start select-none cursor-pointer group"
                 >
                   {/* Image Container with floating heart button */}
-                  <div className="aspect-[4/5] b rounded-[4px] relative p-3 flex items-center justify-center overflow-hidden">
+                  <div className="aspect-[4/5] rounded-[4px] relative p-3 flex items-center justify-center overflow-hidden">
                     <img
                       src={item.mainImage || item.image || '/home/b1.webp'}
                       alt={item.name}
@@ -931,73 +931,72 @@ export default function ProductPage({ params }) {
           </div>
         </div>
 
-        {/* 5. Section 2: Recently Viewed (strictly matching Image 2) */}
-        <div className="mt-8 mb-6">
-          <h3
-            className="text-[20px] sm:text-[22px] font-bold text-[#111111] tracking-tight mb-4 font-['Helvetica_Now_Text_Medium',sans-serif]"
-            style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
-          >
-            Recently Viewed
-          </h3>
+        {/* 5. Section 2: Recently Viewed (Only shown when user has previously viewed products) */}
+        {recentlyViewed && recentlyViewed.length > 0 && (
+          <div className="mt-8 mb-6">
+            <h3
+              className="text-[20px] sm:text-[22px] font-bold text-[#111111] tracking-tight mb-4 font-['Helvetica_Now_Text_Medium',sans-serif]"
+              style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
+            >
+              Recently Viewed
+            </h3>
 
-          <div className="flex gap-3.5 sm:gap-4 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory -mx-4 px-4 sm:-mx-6 sm:px-6">
-            {(recentlyViewed.length >= 2
-              ? recentlyViewed
-              : allCatalog.filter((p) => p.itemId !== product.itemId)
-            ).map((item, idx) => {
-              const isFav = wishlistMap[item.itemId];
+            <div className="flex gap-3.5 sm:gap-4 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory -mx-4 px-4 sm:-mx-6 sm:px-6 scroll-px-4 sm:scroll-px-6 after:shrink-0 after:w-4 sm:after:w-6 after:content-['']">
+              {recentlyViewed.map((item, idx) => {
+                const isFav = wishlistMap[item.itemId];
 
-              return (
-                <div
-                  key={`rv-${item.itemId}-${idx}`}
-                  onClick={() => router.push(`/product/${item.itemId}`)}
-                  className="w-[220px] sm:w-[240px] shrink-0 snap-start select-none cursor-pointer group"
-                >
-                  {/* Image Container with floating heart button */}
-                  <div className="aspect-[4/5] rounded-[4px] relative p-3 flex items-center justify-center overflow-hidden">
-                    <img
-                      src={item.mainImage || item.image || '/home/b2.webp'}
-                      alt={item.name}
-                      className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toggleCardWishlist(item.itemId);
-                      }}
-                      className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white shadow-xs flex items-center justify-center text-[#111111] hover:bg-neutral-50 transition-colors"
-                      aria-label="Save to Wishlist"
-                    >
-                      <Heart
-                        className={`w-4 h-4 transition-colors ${
-                          isFav ? 'fill-rose-500 text-rose-500' : 'text-[#111111]'
-                        }`}
+                return (
+                  <div
+                    key={`rv-${item.itemId}-${idx}`}
+                    onClick={() => router.push(`/product/${item.itemId}`)}
+                    className="w-[220px] sm:w-[240px] shrink-0 snap-start select-none cursor-pointer group"
+                  >
+                    {/* Image Container with floating heart button */}
+                    <div className="aspect-[4/5] rounded-[4px] relative p-3 flex items-center justify-center overflow-hidden">
+                      <img
+                        src={item.mainImage || item.image || '/home/b2.webp'}
+                        alt={item.name}
+                        className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
                       />
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleCardWishlist(item.itemId);
+                        }}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white shadow-xs flex items-center justify-center text-[#111111] hover:bg-neutral-50 transition-colors"
+                        aria-label="Save to Wishlist"
+                      >
+                        <Heart
+                          className={`w-4 h-4 transition-colors ${
+                            isFav ? 'fill-rose-500 text-rose-500' : 'text-[#111111]'
+                          }`}
+                        />
+                      </button>
+                    </div>
 
-                  {/* Card Details with Just In Badge */}
-                  <div className="pt-2.5">
-                    <span className="text-[#c83200] text-[13px] font-medium leading-none block mb-1">
-                      Just In
-                    </span>
-                    <h4
-                      className="text-[15px] sm:text-[16px] font-medium text-[#111111] leading-tight line-clamp-1 font-['Helvetica_Now_Text_Medium',sans-serif]"
-                      style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
-                    >
-                      {item.name}
-                    </h4>
-                    <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] mt-1">
-                      ₹{item.price.toLocaleString('en-IN')}
-                    </p>
+                    {/* Card Details with Just In Badge */}
+                    <div className="pt-2.5">
+                      <span className="text-[#c83200] text-[13px] font-medium leading-none block mb-1">
+                        Just In
+                      </span>
+                      <h4
+                        className="text-[15px] sm:text-[16px] font-medium text-[#111111] leading-tight line-clamp-1 font-['Helvetica_Now_Text_Medium',sans-serif]"
+                        style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
+                      >
+                        {item.name}
+                      </h4>
+                      <p className="text-[15px] sm:text-[16px] font-bold text-[#111111] mt-1">
+                        ₹{item.price.toLocaleString('en-IN')}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         <Footer />
       </div>
