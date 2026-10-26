@@ -121,3 +121,59 @@ export async function checkShiprocketServiceability(deliveryPincode, pickupPinco
       : 'Delivery not available to this PIN code',
   };
 }
+
+/**
+ * Tracks an order or shipment on Shiprocket
+ * @param {Object} options - { orderId, shipmentId, awbCode }
+ * @returns {Promise<Object>} Tracking details from Shiprocket
+ */
+export async function trackShiprocketOrder({ orderId, shipmentId, awbCode }) {
+  const base = process.env.SHIPROCKET_BASE_URL || 'https://apiv2.shiprocket.in/v1/external';
+  const token = await getShiprocketToken();
+
+  let url = '';
+  if (awbCode) {
+    url = `${base}/courier/track/awb/${encodeURIComponent(awbCode)}`;
+  } else if (shipmentId) {
+    url = `${base}/courier/track/shipment/${encodeURIComponent(shipmentId)}`;
+  } else if (orderId) {
+    url = `${base}/courier/track?order_id=${encodeURIComponent(orderId)}`;
+  } else {
+    throw new Error('Order ID, Shipment ID, or AWB Code required for tracking');
+  }
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json();
+  return data;
+}
+
+/**
+ * Cancels an order on Shiprocket
+ */
+export async function cancelShiprocketOrder(shiprocketOrderId) {
+  const base = process.env.SHIPROCKET_BASE_URL || 'https://apiv2.shiprocket.in/v1/external';
+  const token = await getShiprocketToken();
+
+  const res = await fetch(`${base}/orders/cancel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ ids: [Number(shiprocketOrderId)] }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Failed to cancel order on Shiprocket');
+  }
+  return data;
+}
+

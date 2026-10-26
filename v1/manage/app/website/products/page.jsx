@@ -198,6 +198,7 @@ export default function WebsiteProducts() {
         otherImages: fullProduct.otherImages || [],
         price: fullProduct.price,
         costPrice: fullProduct.costPrice || 0,
+        listedPrice: fullProduct.listedPrice?.toString() || fullProduct.originalPrice?.toString() || "",
         color: fullProduct.color || "",
         secondaryColor: fullProduct.secondaryColor || "",
         sizes: fullProduct.availableSizes || [],
@@ -257,6 +258,7 @@ export default function WebsiteProducts() {
         otherImages: editForm.otherImages.length > 0 ? editForm.otherImages : undefined,
         price: parseFloat(editForm.price),
         costPrice: editForm.costPrice ? parseFloat(editForm.costPrice) : undefined,
+        listedPrice: editForm.listedPrice ? parseFloat(editForm.listedPrice) : undefined,
         color: editForm.color || undefined,
         secondaryColor: editForm.secondaryColor || undefined,
         availableSizes: editForm.sizes,
@@ -605,7 +607,12 @@ export default function WebsiteProducts() {
                           </td>
 
                           <td className="px-6 py-4.5 text-right font-extrabold text-slate-800 text-sm">
-                            ₹{p.price?.toLocaleString("en-IN")}
+                            <div>₹{p.price?.toLocaleString("en-IN")}</div>
+                            {(p.listedPrice || p.originalPrice) && (p.listedPrice || p.originalPrice) > p.price && (
+                              <div className="text-[11px] text-slate-400 line-through font-normal">
+                                ₹{(p.listedPrice || p.originalPrice)?.toLocaleString("en-IN")}
+                              </div>
+                            )}
                           </td>
 
                           <td className="px-6 py-4.5 text-center">
@@ -901,7 +908,7 @@ export default function WebsiteProducts() {
                     <h3>Financials & Markup</h3>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Cost Price (₹)</label>
                       <input
@@ -920,9 +927,19 @@ export default function WebsiteProducts() {
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
                       />
                     </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Listed Price / MRP (₹)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 200"
+                        value={editForm.listedPrice || ""}
+                        onChange={(e) => setEditForm({ ...editForm, listedPrice: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
+                      />
+                    </div>
 
                     {cp > 0 && sp > 0 && (
-                      <div className="col-span-2 p-3.5 bg-white border rounded-xl flex items-center justify-between text-xs">
+                      <div className="col-span-1 sm:col-span-3 p-3.5 bg-white border rounded-xl flex items-center justify-between text-xs">
                         <span className="text-slate-400">Projected Margin Markup</span>
                         <span className={`font-extrabold ${profit >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
                           ₹{profit.toFixed(0)} ({profitPercentage.toFixed(0)}%)

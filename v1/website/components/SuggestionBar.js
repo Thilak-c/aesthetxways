@@ -154,9 +154,21 @@ export default function SuggestionBar({ category, customTitle, onItemClick, high
                   <h4 className="text-[8px] font-bold tracking-wide uppercase text-zinc-900 line-clamp-1">
                     {product.name}
                   </h4>
-                  <span className="text-[8.5px] font-semibold text-black mt-0.5">
-                    ₹{product.price.toLocaleString('en-IN')}
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <span className="text-[8.5px] font-semibold text-black">
+                      ₹{product.price.toLocaleString('en-IN')}
+                    </span>
+                    {(product.listedPrice || product.originalPrice) && (product.listedPrice || product.originalPrice) > product.price && (
+                      <>
+                        <span className="text-[8px] text-zinc-400 line-through">
+                          ₹{(product.listedPrice || product.originalPrice).toLocaleString('en-IN')}
+                        </span>
+                        <span className="text-[8px] font-bold text-[#008a00]">
+                          {Math.round((((product.listedPrice || product.originalPrice) - product.price) / (product.listedPrice || product.originalPrice)) * 100)}% off
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </Link>
             </div>

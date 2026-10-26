@@ -11,6 +11,7 @@ export async function POST(request) {
       customerDetails, 
       paymentMethod, 
       orderTotal,
+      shippingFee,
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature 
@@ -20,23 +21,27 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Missing order details' }, { status: 400 });
     }
 
-    // 1. Verify Razorpay payment signature
-    if (razorpayOrderId && razorpayPaymentId && razorpaySignature) {
-      const secret = process.env.RAZORPAY_KEY_SECRET;
-      if (!secret) {
-        return NextResponse.json({ success: false, message: 'Razorpay key secret not configured on server' }, { status: 500 });
-      }
+    const isCOD = String(paymentMethod || '').toUpperCase() === 'COD';
 
-      const generatedSignature = crypto
-        .createHmac('sha256', secret)
-        .update(razorpayOrderId + '|' + razorpayPaymentId)
-        .digest('hex');
+    // 1. Verify Razorpay payment signature for prepaid orders
+    if (!isCOD) {
+      if (razorpayOrderId && razorpayPaymentId && razorpaySignature) {
+        const secret = process.env.RAZORPAY_KEY_SECRET;
+        if (!secret) {
+          return NextResponse.json({ success: false, message: 'Razorpay key secret not configured on server' }, { status: 500 });
+        }
 
-      if (generatedSignature !== razorpaySignature) {
-        return NextResponse.json({ success: false, message: 'Payment verification failed: invalid signature' }, { status: 400 });
+        const generatedSignature = crypto
+          .createHmac('sha256', secret)
+          .update(razorpayOrderId + '|' + razorpayPaymentId)
+          .digest('hex');
+
+        if (generatedSignature !== razorpaySignature) {
+          return NextResponse.json({ success: false, message: 'Payment verification failed: invalid signature' }, { status: 400 });
+        }
+      } else {
+        return NextResponse.json({ success: false, message: 'Payment verification failed: missing payment identifiers' }, { status: 400 });
       }
-    } else {
-      return NextResponse.json({ success: false, message: 'Payment verification failed: missing payment identifiers' }, { status: 400 });
     }
     
     // 2. Try validating stock and inserting order in Convex
@@ -135,6 +140,7 @@ export async function POST(request) {
             status: paymentMethod === 'COD' ? 'pending' : 'completed',
           },
           orderTotal,
+          shippingFee: shippingFee || (orderTotal > 2499 ? 129 : 79),
           status: 'pending',
           isFallbackSaved: true,
           createdAt: new Date(),
@@ -169,8 +175,30 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
+    const orderId = searchParams.get('orderId');
     const email = searchParams.get('email');
-    const phone = searchParams.get('phone');
+    const phone = searchParams.get('phone') || searchParams.get('mobile');
+
+    const db = await getDb();
+
+    // 1. Single order query by orderId or orderNumber
+    if (orderId) {
+      let order = await db.collection('orders').findOne({
+        $or: [{ orderId }, { orderNumber: orderId }],
+      });
+
+      if (!order && orderId.length === 24) {
+        try {
+          const { ObjectId } = await import('mongodb');
+          order = await db.collection('orders').findOne({ _id: new ObjectId(orderId) });
+        } catch (e) {}
+      }
+
+      if (order) {
+        return NextResponse.json({ success: true, order });
+      }
+      return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
+    }
 
     if (!email && !phone) {
       return NextResponse.json({ success: true, orders: [] });
@@ -178,7 +206,7 @@ export async function GET(request) {
 
     let orders = [];
 
-    // 1. Try Convex query
+    // 2. Try Convex query
     try {
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), 2500)
@@ -197,12 +225,28 @@ export async function GET(request) {
       // ignore Convex timeout
     }
 
-    // 2. Query MongoDB fallback
+    // 3. Query MongoDB fallback
     try {
-      const db = await getDb();
+      const cleanPhone = phone ? phone.replace(/\D/g, '').slice(-10) : '';
       const query = [];
-      if (email) query.push({ 'customerDetails.email': email.toLowerCase().trim() });
-      if (phone) query.push({ 'customerDetails.phone': phone.trim() });
+      if (email) {
+        query.push({ 'customerDetails.email': email.toLowerCase().trim() });
+        query.push({ 'customer.email': email.toLowerCase().trim() });
+      }
+      if (phone) {
+        query.push({ 'customerDetails.phone': phone.trim() });
+        query.push({ 'customer.mobile': phone.trim() });
+      }
+      if (cleanPhone) {
+        query.push({ 'customerDetails.phone': cleanPhone });
+        query.push({ 'customerDetails.phone': `+91${cleanPhone}` });
+        query.push({ 'customerDetails.phone': `91${cleanPhone}` });
+        query.push({ 'customer.mobile': cleanPhone });
+        query.push({ 'customer.mobile': `+91${cleanPhone}` });
+        query.push({ 'customer.mobile': `91${cleanPhone}` });
+        query.push({ 'address.mobile': cleanPhone });
+        query.push({ 'address.phone': cleanPhone });
+      }
 
       if (query.length > 0) {
         const mongoOrders = await db
@@ -212,11 +256,13 @@ export async function GET(request) {
           .limit(50)
           .toArray();
 
-        // Merge without duplicates by orderNumber
-        const existingNumbers = new Set(orders.map((o) => o.orderNumber));
+        // Merge without duplicates by orderNumber or orderId
+        const existingKeys = new Set(orders.map((o) => o.orderId || o.orderNumber));
         for (const mo of mongoOrders) {
-          if (!existingNumbers.has(mo.orderNumber)) {
+          const key = mo.orderId || mo.orderNumber;
+          if (!existingKeys.has(key)) {
             orders.push(mo);
+            existingKeys.add(key);
           }
         }
       }
@@ -224,7 +270,7 @@ export async function GET(request) {
       // ignore
     }
 
-    return NextResponse.json({ success: true, orders });
+    return NextResponse.json({ success: true, count: orders.length, orders });
   } catch (err) {
     console.error('Failed to load orders:', err);
     return NextResponse.json({ success: false, orders: [] }, { status: 500 });

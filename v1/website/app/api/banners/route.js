@@ -1,28 +1,12 @@
 import { NextResponse } from 'next/server';
-import { convexClient } from '@/lib/convex';
+import { getBanners } from '@/lib/banners';
 
-export async function GET(request) {
+export async function GET() {
   try {
-    // Fetch banners from Convex using the banners:getBanners query
-    const banners = await convexClient.query('banners:getBanners');
-    
-    // Resolve banner images to absolute URLs pointing to the admin/insys panel
-    const manageUrl = process.env.NEXT_PUBLIC_INSYS_URL || 'https://manage.aesthetxways.com';
-    const resolvedBanners = banners.map((banner) => {
-      let imageUrl = banner.imageUrl;
-      if (imageUrl) {
-        // Strip out local host domain if present, or resolve relative paths
-        const idx = imageUrl.indexOf('/api/uploads/');
-        if (idx !== -1) {
-          imageUrl = `${manageUrl}${imageUrl.substring(idx)}`;
-        }
-      }
-      return { ...banner, imageUrl };
-    });
-
-    return NextResponse.json({ success: true, banners: resolvedBanners });
+    const banners = await getBanners();
+    return NextResponse.json({ success: true, banners });
   } catch (error) {
-    console.warn('Failed to fetch banners from Convex, falling back to local files:', error.message);
+    console.error('API banners route error:', error?.message || error);
     return NextResponse.json({ success: true, banners: [] });
   }
 }

@@ -25,7 +25,16 @@ export async function GET(request) {
     const secret = process.env.JWT_SECRET || 'aesthetx-secret-2024';
     const expectedToken = crypto.createHmac('sha256', secret).update(emailTrimmed).digest('hex');
 
-    if (!clientToken || clientToken !== expectedToken) {
+    let isValid = false;
+    if (clientToken && typeof clientToken === 'string') {
+      const clientBuf = Buffer.from(clientToken, 'utf-8');
+      const expectedBuf = Buffer.from(expectedToken, 'utf-8');
+      if (clientBuf.length === expectedBuf.length && crypto.timingSafeEqual(clientBuf, expectedBuf)) {
+        isValid = true;
+      }
+    }
+
+    if (!isValid) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }

@@ -94,6 +94,7 @@ export default function ProductTable({ products }) {
         otherImages: editForm.otherImages.length > 0 ? editForm.otherImages : undefined,
         price: parseFloat(editForm.price) || 0,
         costPrice: parseFloat(editForm.costPrice) || 0,
+        listedPrice: editForm.listedPrice ? parseFloat(editForm.listedPrice) : undefined,
         color: editForm.color,
         secondaryColor: editForm.secondaryColor,
         availableSizes: editForm.sizes,
@@ -155,6 +156,7 @@ export default function ProductTable({ products }) {
         otherImages: editingProduct.otherImages || [],
         price: editingProduct.price?.toString() || "",
         costPrice: editingProduct.costPrice?.toString() || "",
+        listedPrice: editingProduct.listedPrice?.toString() || editingProduct.originalPrice?.toString() || "",
         color: editingProduct.color || "",
         secondaryColor: editingProduct.secondaryColor || "",
         sizes: editingProduct.availableSizes || [],
@@ -757,7 +759,7 @@ export default function ProductTable({ products }) {
                         <h3>Financials & Markup</h3>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                           <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Cost Price (₹)</label>
                           <input
@@ -776,9 +778,19 @@ export default function ProductTable({ products }) {
                             className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
                           />
                         </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Listed Price / MRP (₹)</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 200"
+                            value={editForm.listedPrice || ""}
+                            onChange={(e) => setEditForm({ ...editForm, listedPrice: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
+                          />
+                        </div>
 
                         {cp > 0 && sp > 0 && (
-                          <div className="col-span-2 p-3.5 bg-white border rounded-xl flex items-center justify-between text-xs">
+                          <div className="col-span-1 sm:col-span-3 p-3.5 bg-white border rounded-xl flex items-center justify-between text-xs">
                             <span className="text-slate-400">Projected Margin Markup</span>
                             <span className={`font-extrabold ${profit >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
                               ₹{profit.toFixed(0)} ({profitPercentage.toFixed(0)}%)
@@ -786,7 +798,9 @@ export default function ProductTable({ products }) {
                           </div>
                         )}
                       </div>
-                                  {/* Form Group: Sizes & Grid */}
+                    </div>
+
+                    {/* Form Group: Sizes & Grid */}
                     <div className="bg-slate-50/70 border border-slate-100 p-5 rounded-2xl shadow-sm space-y-4">
                       <div className="flex items-center justify-between border-b border-slate-200/50 pb-2">
                         <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">

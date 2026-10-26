@@ -91,15 +91,15 @@ function FlyingItem({ image, coords, index, total, onComplete }) {
   );
 }
 
-export default function HomeClient() {
-  const [products, setProducts] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function HomeClient({ initialProducts = [], initialBanners = [] }) {
+  const [products, setProducts] = useState(initialProducts);
+  const [allProducts, setAllProducts] = useState(initialProducts);
+  const [loading, setLoading] = useState(initialProducts.length === 0);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [cartCount, setCartCount] = useState(0);
-  const [banners, setBanners] = useState([]);
+  const [banners, setBanners] = useState(initialBanners);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [autoplayEnabled, setAutoplayEnabled] = useState(true);
@@ -221,8 +221,9 @@ export default function HomeClient() {
     }
   };
 
-  // Fetch banners on mount
+  // Fetch banners on mount if not provided by server
   useEffect(() => {
+    if (banners && banners.length > 0) return;
     async function fetchBanners() {
       try {
         const res = await fetch('/api/banners');
@@ -235,7 +236,7 @@ export default function HomeClient() {
       }
     }
     fetchBanners();
-  }, []);
+  }, [banners]);
 
   // Autoplay hero banners
   useEffect(() => {
@@ -294,8 +295,14 @@ export default function HomeClient() {
     }
   }, []);
 
+  const initialFetchSkippedRef = useRef(initialProducts.length > 0);
+
   // Fetch all products once on mount (and when search changes)
   useEffect(() => {
+    if (initialFetchSkippedRef.current && searchQuery === '') {
+      initialFetchSkippedRef.current = false;
+      return;
+    }
     async function fetchProducts() {
       try {
         setLoading(true);
@@ -462,7 +469,7 @@ export default function HomeClient() {
 
     return (
       <Link key={product._id} href={`/product/${product.itemId}`} className="group flex flex-col relative">
-        <div className="relative w-full aspect-[4/5] bg-zinc-50 overflow-hidden rounded-[2px] border border-zinc-100">
+        <div className="relative w-full aspect-[4/5] bg-zinc-50 overflow-hidden rounded-[2px] ">
           <FallbackImage
             src={getCachedImage(product.itemId, product.mainImage)}
             alt={product.name}
@@ -558,9 +565,21 @@ export default function HomeClient() {
           <span className="text-[8px] text-zinc-400 uppercase tracking-wider font-medium mt-0.5">
             {product.category}
           </span>
-          <span className="text-[9px] font-semibold text-black mt-1">
-            ₹{product.price.toLocaleString('en-IN')}
-          </span>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span className="text-[9px] font-semibold text-black">
+              ₹{product.price.toLocaleString('en-IN')}
+            </span>
+            {(product.listedPrice || product.originalPrice) && (product.listedPrice || product.originalPrice) > product.price && (
+              <>
+                <span className="text-[8.5px] text-zinc-400 line-through">
+                  ₹{(product.listedPrice || product.originalPrice).toLocaleString('en-IN')}
+                </span>
+                <span className="text-[8.5px] font-bold text-[#008a00]">
+                  {Math.round((((product.listedPrice || product.originalPrice) - product.price) / (product.listedPrice || product.originalPrice)) * 100)}% off
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </Link>
     );
@@ -850,86 +869,7 @@ export default function HomeClient() {
         <Footer />
       </main>
 
-      {/* Floating Control Bar for Sorting and Layout Toggling */}
-      {!loading && products.length > 0 && (
-        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 w-auto max-w-[95%] bg-white/70 backdrop-blur-xl border border-zinc-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.08)] px-4 py-2.5 rounded-full flex items-center gap-3.5 text-xs select-none">
-          {/* Category Selector Control */}
-          <div ref={categoryDropdownRef} className="relative flex items-center gap-1 border-r border-zinc-200/60 pr-3">
-            <span className="text-[8.5px] uppercase font-bold text-zinc-400 tracking-wider">Sort</span>
-            <button
-              onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
-              className="flex items-center gap-0.5 w-[62px] text-[9.5px] font-bold text-black cursor-pointer uppercase tracking-wider"
-            >
-              <span>
-                {activeCategory === 'All' ? 'All' : (activeCategory === 'Apparel / Clothing' ? 'Apparel' : activeCategory)}
-              </span>
-              <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${categoryDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {/* Custom Dropdown Options with slide/fade animation */}
-            <div
-              className={`absolute bottom-[calc(100%+12px)] left-0 z-50 min-w-[130px] bg-white/70 backdrop-blur-xl border border-zinc-200/50 rounded-[8px] shadow-[0_4px_20px_rgba(0,0,0,0.08)] p-1 flex flex-col gap-0.5 transition-all duration-300 origin-bottom-left ${
-                categoryDropdownOpen
-                  ? 'opacity-100 scale-100 translate-y-0'
-                  : 'opacity-0 scale-95 translate-y-2 pointer-events-none'
-              }`}
-            >
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => {
-                    setActiveCategory(cat);
-                    setCategoryDropdownOpen(false);
-                    isProgrammaticScrollRef.current = true;
-                    if (cat === 'All') {
-                      document.getElementById('shop-content')?.scrollIntoView({ behavior: 'smooth' });
-                    } else {
-                      const targetId = `category-section-${cat.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-                      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
-                    }
-                    setTimeout(() => {
-                      isProgrammaticScrollRef.current = false;
-                    }, 800);
-                  }}
-                  className={`w-full text-left text-[9.5px] font-bold uppercase tracking-wider px-2 py-1.5 rounded-[4px] transition-all cursor-pointer ${
-                    activeCategory === cat
-                      ? 'bg-black text-white'
-                      : 'text-zinc-500 hover:bg-black/5 hover:text-black'
-                  }`}
-                >
-                  {cat === 'Apparel / Clothing' ? 'Apparel' : cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-
-          {/* Layout Toggle */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleLayoutChange('grid')}
-              className={`text-[8.5px] tracking-widest uppercase font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                layoutView === 'grid'
-                  ? 'bg-black text-white'
-                  : 'text-zinc-500 hover:text-black'
-              }`}
-            >
-              Grid
-            </button>
-            <button
-              onClick={() => handleLayoutChange('focus')}
-              className={`text-[8.5px] tracking-widest uppercase font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                layoutView === 'focus'
-                  ? 'bg-black text-white'
-                  : 'text-zinc-500 hover:text-black'
-              }`}
-            >
-              Focus
-            </button>
-          </div>
-        </div>
-      )}
-
+   
       {/* Premium Minimalist Sticky Toast Notification for Quick Add */}
       <div className="sticky top-12 left-0 right-0 z-50 h-0 w-full pointer-events-none px-4">
         <div

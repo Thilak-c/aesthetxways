@@ -378,6 +378,8 @@ export default function CartClient({ initialStep = 'bag' }) {
     (acc, item) => acc + (item.priceNumber || item.price || 0) * (item.quantity || 1),
     0
   );
+  const shippingCharge = cartItems.length === 0 ? 0 : (subtotal > 2499 ? 129 : 79);
+  const grandTotal = subtotal + shippingCharge;
 
   const toggleWishlist = (key) => {
     setWishlist((prev) => ({
@@ -600,7 +602,7 @@ export default function CartClient({ initialStep = 'bag' }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: subtotal,
+          amount: grandTotal,
           items: cartItems,
           notes: {
             customerName: address.name || 'Customer',
@@ -608,6 +610,7 @@ export default function CartClient({ initialStep = 'bag' }) {
             contact: address.mobile || '',
             address: `${address.houseNo || ''}, ${address.street || address.roadArea || ''}, ${address.city || ''} - ${address.pincode || ''}`,
             method: paymentMethod,
+            shippingCharge,
           },
         }),
       });
@@ -633,7 +636,7 @@ export default function CartClient({ initialStep = 'bag' }) {
       // 2. Configure and open Razorpay modal with full options (exact from Sonu)
       const options = {
         key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_ToeynJ0XXfrtyp',
-        amount: orderData.amount || Math.round(subtotal * 100),
+        amount: orderData.amount || Math.round(grandTotal * 100),
         currency: orderData.currency || 'INR',
         name: 'AESTHETX WAYS',
         description: `Order Payment (${totalQuantity} ${totalQuantity === 1 ? 'item' : 'items'})`,
@@ -699,8 +702,16 @@ export default function CartClient({ initialStep = 'bag' }) {
             razorpayOrderId: response.razorpay_order_id,
             razorpaySignature: response.razorpay_signature,
             items: [...cartItems],
-            totalAmount: subtotal,
+            subtotal,
+            shippingFee: shippingCharge,
+            totalAmount: grandTotal,
             address: { ...address },
+            customer: {
+              name: displayName,
+              mobile: displayContact,
+              email: address.email,
+              address: `${address.houseNo || ''}, ${address.street || address.roadArea || ''}`,
+            },
             paymentMethod,
             placedAt: new Date().toISOString(),
             estimatedDelivery: address.deliveryEtd || '3-5 business days',
@@ -730,7 +741,8 @@ export default function CartClient({ initialStep = 'bag' }) {
                   pincode: address.pincode || '800013',
                 },
                 paymentMethod,
-                orderTotal: subtotal,
+                orderTotal: grandTotal,
+                shippingFee: shippingCharge,
                 razorpayOrderId: response.razorpay_order_id,
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature,
@@ -1107,24 +1119,8 @@ export default function CartClient({ initialStep = 'bag' }) {
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-[#707072]">
-                      <span className="flex items-center gap-1.5">
-                        Shipping Charges
-                        <svg
-                          className="w-3.5 h-3.5 text-[#8d8d8d]"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <circle cx="12" cy="12" r="10" />
-                          <line x1="12" y1="16" x2="12" y2="12" />
-                          <line x1="12" y1="8" x2="12.01" y2="8" />
-                        </svg>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="line-through text-[#8d8d8d]">₹99</span>
-                        <span className="text-[#008a00] font-medium">Free</span>
-                      </span>
+                      <span>Shipping Charges</span>
+                      <span className="text-[#111111] font-medium">₹{shippingCharge}</span>
                     </div>
                     <div className="border-b border-[#f0f0f0] my-2" />
                     <div className="flex justify-between items-center text-[15px] font-bold text-[#111111]">
@@ -1138,7 +1134,7 @@ export default function CartClient({ initialStep = 'bag' }) {
                         className="font-['Helvetica_Now_Text_Medium',sans-serif]"
                         style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
                       >
-                        ₹{subtotal.toLocaleString('en-IN')}
+                        ₹{grandTotal.toLocaleString('en-IN')}
                       </span>
                     </div>
                   </div>
@@ -1388,7 +1384,7 @@ export default function CartClient({ initialStep = 'bag' }) {
                       <span>Processing Payment...</span>
                     </>
                   ) : (
-                    `Pay ₹${subtotal.toLocaleString('en-IN')}`
+                    `Pay ₹${grandTotal.toLocaleString('en-IN')}`
                   )}
                 </button>
               </div>
@@ -1480,7 +1476,7 @@ export default function CartClient({ initialStep = 'bag' }) {
                       <span>Processing Payment...</span>
                     </>
                   ) : (
-                    `Pay ₹${subtotal.toLocaleString('en-IN')}`
+                    `Pay ₹${grandTotal.toLocaleString('en-IN')}`
                   )}
                 </button>
               </div>
@@ -1572,7 +1568,7 @@ export default function CartClient({ initialStep = 'bag' }) {
                       <span>Processing Payment...</span>
                     </>
                   ) : (
-                    `Pay ₹${subtotal.toLocaleString('en-IN')}`
+                    `Pay ₹${grandTotal.toLocaleString('en-IN')}`
                   )}
                 </button>
               </div>
@@ -1633,7 +1629,7 @@ export default function CartClient({ initialStep = 'bag' }) {
                       <span>Processing Payment...</span>
                     </>
                   ) : (
-                    `Pay ₹${subtotal.toLocaleString('en-IN')}`
+                    `Pay ₹${grandTotal.toLocaleString('en-IN')}`
                   )}
                 </button>
               </div>
@@ -1666,16 +1662,8 @@ export default function CartClient({ initialStep = 'bag' }) {
                   <span className="text-[#111111] font-medium">₹{subtotal.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex items-center justify-between text-[14px] text-[#707072]">
-                  <span className="flex items-center gap-1.5">
-                    Shipping Charges
-                    <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[#8d8d8d] text-[10px] text-[#8d8d8d]">
-                      i
-                    </span>
-                  </span>
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <span className="line-through text-[#8d8d8d] text-[13px]">₹99</span>
-                    <span className="text-[#059669]">Free</span>
-                  </div>
+                  <span>Shipping Charges</span>
+                  <span className="text-[#111111] font-medium">₹{shippingCharge}</span>
                 </div>
                 <div className="pt-3 border-t border-[#f0f0f0] flex items-center justify-between">
                   <span
@@ -1688,7 +1676,7 @@ export default function CartClient({ initialStep = 'bag' }) {
                     className="text-[15px] sm:text-[16px] font-bold text-[#111111] font-['Helvetica_Now_Text_Medium',sans-serif]"
                     style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
                   >
-                    ₹{subtotal.toLocaleString('en-IN')}
+                    ₹{grandTotal.toLocaleString('en-IN')}
                   </span>
                 </div>
               </div>
@@ -1733,36 +1721,62 @@ export default function CartClient({ initialStep = 'bag' }) {
         {cartItems.map((item, idx) => {
           const itemKey = `${item.id || item.productId}-${item.size}-${idx}`;
           const isFavourited = wishlist[itemKey];
+          const prodId = item.productId || item.itemId || item.id || item._id;
+          const prodUrl = prodId ? `/product/${prodId}` : null;
 
           return (
             <div key={itemKey}>
               {/* Product Info Row */}
               <div className="flex gap-4 sm:gap-5 items-start">
-                {/* Square Product Image */}
-                <div className="w-[124px] h-[124px] sm:w-[136px] sm:h-[136px]  shrink-0 flex items-center justify-center rounded-[2px] overflow-hidden">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-full h-full object-contain mix-blend-multiply"
-                  />
-                </div>
+                    {/* Square Product Image */}
+                    {prodUrl ? (
+                      <Link
+                        href={prodUrl}
+                        className="w-[124px] h-[124px] sm:w-[136px] sm:h-[136px] shrink-0 flex items-center justify-center rounded-[2px] overflow-hidden group hover:opacity-90 transition-opacity cursor-pointer"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </Link>
+                    ) : (
+                      <div className="w-[124px] h-[124px] sm:w-[136px] sm:h-[136px] shrink-0 flex items-center justify-center rounded-[2px] overflow-hidden">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-contain mix-blend-multiply"
+                        />
+                      </div>
+                    )}
 
-                {/* Details Column */}
-                <div className="flex-1 min-w-0 pt-0.5">
-                  <p className="text-[17px] sm:text-[18px] font-bold text-[#111111] leading-none">
-                    ₹ {(item.priceNumber || item.price || 0).toLocaleString('en-IN')}
-                  </p>
+                    {/* Details Column */}
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <p className="text-[17px] sm:text-[18px] font-bold text-[#111111] leading-none">
+                        ₹ {(item.priceNumber || item.price || 0).toLocaleString('en-IN')}
+                      </p>
 
-                  <h2
-                    className="text-[16px] sm:text-[17px] font-medium text-[#111111] mt-1.5 leading-snug font-['Helvetica_Now_Text_Medium',sans-serif]"
-                    style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
-                  >
-                    {item.name}
-                  </h2>
+                      {prodUrl ? (
+                        <Link href={prodUrl} className="group inline-block mt-1.5">
+                          <h2
+                            className="text-[16px] sm:text-[17px] font-medium text-[#111111] leading-snug group-hover:underline cursor-pointer font-['Helvetica_Now_Text_Medium',sans-serif]"
+                            style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
+                          >
+                            {item.name}
+                          </h2>
+                        </Link>
+                      ) : (
+                        <h2
+                          className="text-[16px] sm:text-[17px] font-medium text-[#111111] mt-1.5 leading-snug font-['Helvetica_Now_Text_Medium',sans-serif]"
+                          style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
+                        >
+                          {item.name}
+                        </h2>
+                      )}
 
-                  <p className="text-[14px] text-[#707072] mt-1 leading-normal">
-                    {item.category || 'Apparel'}{itemHasMultipleSizes(item) ? ` (${item.size})` : ''}
-                  </p>
+                      <p className="text-[14px] text-[#707072] mt-1 leading-normal">
+                        {item.category || 'Apparel'}{itemHasMultipleSizes(item) ? ` (${item.size})` : ''}
+                      </p>
 
                   <p className="text-[14px] text-[#707072] mt-0.5 leading-normal">14 Day Return</p>
 
@@ -1889,7 +1903,7 @@ export default function CartClient({ initialStep = 'bag' }) {
 
           <div className="flex items-center justify-between">
             <span>Shipping Charges</span>
-            <span className="text-[#0d8240] font-normal">Free</span>
+            <span className="text-[#111111] font-medium">₹ {shippingCharge}</span>
           </div>
         </div>
 
@@ -1897,7 +1911,7 @@ export default function CartClient({ initialStep = 'bag' }) {
 
         <div className="flex items-center justify-between text-[18px] sm:text-[19px] font-bold text-[#111111]">
           <span>You Pay</span>
-          <span>₹ {subtotal.toLocaleString('en-IN')}</span>
+          <span>₹ {grandTotal.toLocaleString('en-IN')}</span>
         </div>
 
         <div className="border-t border-[#e5e5e5] mt-4 mb-4" />

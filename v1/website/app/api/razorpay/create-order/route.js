@@ -4,7 +4,23 @@ export async function POST(request) {
   try {
     const { amount, receipt, notes, items } = await request.json();
 
-    if (!amount || amount <= 0) {
+    let finalAmount = Number(amount);
+
+    // Verify and compute server-side amount from items if provided to prevent price tampering
+    if (Array.isArray(items) && items.length > 0) {
+      const computedSubtotal = items.reduce((sum, item) => {
+        const itemPrice = Number(item.priceNumber || item.price || 0);
+        const qty = Math.max(1, Number(item.quantity || 1));
+        return sum + (itemPrice * qty);
+      }, 0);
+
+      if (computedSubtotal > 0) {
+        const computedShipping = computedSubtotal > 2499 ? 129 : 79;
+        finalAmount = computedSubtotal + computedShipping;
+      }
+    }
+
+    if (!finalAmount || finalAmount <= 0) {
       return NextResponse.json(
         { error: 'Valid amount is required' },
         { status: 400 }
@@ -25,7 +41,7 @@ export async function POST(request) {
     const authHeader = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
 
     // Razorpay amount is in paise (1 INR = 100 paise)
-    const amountInPaise = Math.round(Number(amount) * 100);
+    const amountInPaise = Math.round(Number(finalAmount) * 100);
     const receiptId = receipt || `rcpt_${Date.now()}`;
 
     const res = await fetch('https://api.razorpay.com/v1/orders', {

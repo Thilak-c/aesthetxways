@@ -9,6 +9,19 @@ const otpRateLimitMap = new Map();
 function isRateLimited(email) {
   const now = Date.now();
   const windowMs = 10 * 60 * 1000;
+
+  // Prune stale entries when map grows to prevent memory leak
+  if (otpRateLimitMap.size > 500) {
+    for (const [key, timestamps] of otpRateLimitMap.entries()) {
+      const active = timestamps.filter((ts) => now - ts < windowMs);
+      if (active.length === 0) {
+        otpRateLimitMap.delete(key);
+      } else {
+        otpRateLimitMap.set(key, active);
+      }
+    }
+  }
+
   const history = otpRateLimitMap.get(email) || [];
   const recent = history.filter((ts) => now - ts < windowMs);
   if (recent.length >= 3) {

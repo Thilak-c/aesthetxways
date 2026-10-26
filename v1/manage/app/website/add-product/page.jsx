@@ -67,6 +67,7 @@ export default function WebsiteAddProduct() {
     sizeStock: {},
     costPrice: "",
     sellingPrice: "",
+    listedPrice: "",
     description: "",
     mainImage: "",
     otherImages: [],
@@ -144,6 +145,7 @@ export default function WebsiteAddProduct() {
         description: form.description || undefined,
         price: parseFloat(form.sellingPrice),
         costPrice: form.costPrice ? parseFloat(form.costPrice) : undefined,
+        listedPrice: form.listedPrice ? parseFloat(form.listedPrice) : undefined,
         mainImage: form.mainImage || "/placeholder.png",
         otherImages: form.otherImages.length > 0 ? form.otherImages : undefined,
         availableSizes: form.sizes,
@@ -173,6 +175,7 @@ export default function WebsiteAddProduct() {
       sizeStock: {},
       costPrice: "",
       sellingPrice: "",
+      listedPrice: "",
       description: "",
       mainImage: "",
       otherImages: [],
@@ -508,6 +511,21 @@ export default function WebsiteAddProduct() {
                         value={form.sellingPrice}
                         onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
                         placeholder="0"
+                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Listed Price / MRP (₹)</label>
+                    <div className="relative">
+                      <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                      <input
+                        type="number"
+                        min="0"
+                        value={form.listedPrice}
+                        onChange={(e) => setForm({ ...form, listedPrice: e.target.value })}
+                        placeholder="e.g. 2999"
                         className="w-full pl-9 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
                       />
                     </div>

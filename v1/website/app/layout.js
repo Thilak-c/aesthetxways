@@ -1,31 +1,13 @@
-import { Geist, Geist_Mono, Moirai_One, Oi } from "next/font/google";
+import { Geist } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import SplashWrapper from "@/components/SplashWrapper";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import AgentationWrapper from "@/components/AgentationWrapper";
 import SiteStatusGate from "@/components/SiteStatusGate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const moiraiOne = Moirai_One({
-  weight: "400",
-  variable: "--font-moirai",
-  subsets: ["latin"],
-});
-
-const oi = Oi({
-  weight: "400",
-  variable: "--font-oi",
   subsets: ["latin"],
 });
 
@@ -36,8 +18,50 @@ const loveloBlack = localFont({
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://aesthetxways.com'),
-  title: "Aesthetx Ways | Home Page",
-  description: "Sleek, minimalistic clothing, footwear, headwear, and eyewear.",
+  title: {
+    default: "Aesthetx Ways | Streetwear Brand",
+    template: "%s",
+  },
+  description: "Streetwear, oversized graphic tees, heavyweight hoodies, baggy jeans, and accessories designed with architectural refinement.",
+  keywords: [
+    "Aesthetx Ways",
+    "streetwear india",
+    "baggy jeans",
+    "oversized tees",
+    "minimalist fashion",
+    "streetwear store patna",
+    "streetwear store gaya"
+  ],
+  openGraph: {
+    title: "Aesthetx Ways | Streetwear Brand",
+    description: "Streetwear, oversized graphic tees, heavyweight hoodies, baggy jeans, and accessories designed with architectural refinement.",
+    url: "https://aesthetxways.com",
+    siteName: "Aesthetx Ways",
+    images: [
+      {
+        url: "/logo.png",
+        width: 800,
+        height: 800,
+        alt: "Aesthetx Ways Brand Logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Aesthetx Ways | Streetwear Brand",
+    description: "Streetwear, oversized graphic tees, heavyweight hoodies, baggy jeans, and accessories designed with architectural refinement.",
+    images: ["/logo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/logo.png",
+  },
 };
 
 const menuItems = [
@@ -55,7 +79,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${moiraiOne.variable} ${oi.variable} ${loveloBlack.variable} antialiased`}
+      className={`${geistSans.variable} ${loveloBlack.variable} antialiased`}
     >
       <head>
         <script
@@ -107,7 +131,6 @@ export default function RootLayout({ children }) {
           </div>
 
         </div>
-        {/* <AgentationWrapper /> */}
       </body>
     </html>
   );

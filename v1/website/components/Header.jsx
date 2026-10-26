@@ -154,7 +154,7 @@ export default function Header() {
             </Link>
 
             {/* Hamburger Button */}
-            <button
+            {/* <button
               type="button"
               onClick={() => setMenuOpen(true)}
               className=" transition-colors flex items-center justify-center text-[#111111]"
@@ -164,7 +164,7 @@ export default function Header() {
               <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" role="img" width="24px" height="24px" fill="none">
                 <path stroke="#111111" strokeWidth="1.5" d="M21 5.25H3M21 12H3m18 6.75H3" />
               </svg>
-            </button>
+            </button> */}
           </div>
         </div>
       </header>
@@ -296,7 +296,7 @@ export default function Header() {
 
             {/* Favourites */}
             <Link
-              href="/#collection"
+              href="/favourites"
               onClick={() => setMenuOpen(false)}
               className="flex items-center gap-3.5 py-1.5 text-[15px] font-medium text-[#111111] hover:text-[#707072] transition-colors"
               aria-label="Wishlist"

@@ -7,6 +7,24 @@ export default function Footer() {
         <p>© 2026 Aesthetx Ways. All rights reserved</p>
         <p>Powered by Flowify Agency</p>
         <Link
+          href="/orders"
+          className="hover:text-[#111111] transition-colors"
+        >
+          Orders & Tracking
+        </Link>
+        <Link
+          href="/favourites"
+          className="hover:text-[#111111] transition-colors"
+        >
+          Favourites
+        </Link>
+        <Link
+          href="/help-center"
+          className="hover:text-[#111111] transition-colors"
+        >
+          Help Center & FAQs
+        </Link>
+        <Link
           href="/terms"
           className="hover:text-[#111111] transition-colors"
         >

@@ -3,15 +3,15 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Clock, 
-  Phone, 
-  ExternalLink, 
-  Compass, 
-  Star, 
-  Share2, 
+import {
+  ArrowLeft,
+  MapPin,
+  Clock,
+  Phone,
+  ExternalLink,
+  Compass,
+  Star,
+  Share2,
   Navigation,
   Check
 } from 'lucide-react';
@@ -21,11 +21,12 @@ const STORES = [
   {
     id: 'patna',
     name: 'AESTHETX WAYS ( PATNA )',
+    rating: '4.8',
+    reviewsCount: '18',
     type: 'Clothing store in Patna, Bihar',
     address: 'Kankarbagh Colony More, Kankarbagh, Ghrounda, Patna, Bihar 800001',
     phone: '070337 69997',
-    rating: '4.8',
-    reviewsCount: '18',
+    directionsUrl: 'https://maps.google.com/?q=AESTHETX+WAYS+Kankarbagh+Colony+More+Kankarbagh+Ghrounda+Patna+Bihar+800001',
     coordinates: '25.5941° N, 85.1376° E',
     transitInfo: '17 mins travel time from Patna Junction',
     details: 'Located at Kankarbagh Colony More, near critical city transit nodes.',
@@ -37,17 +38,17 @@ const STORES = [
       { day: 'Friday', time: '10:30 am – 10:30 pm' },
       { day: 'Saturday', time: '10:30 am – 10:30 pm' },
       { day: 'Sunday', time: '10:30 am – 10:30 pm' }
-    ],
-    directionsUrl: 'https://maps.google.com/?q=AESTHETX+WAYS+Kankarbagh+Colony+More+Kankarbagh+Ghrounda+Patna+Bihar+800001'
+    ]
   },
   {
     id: 'gaya',
     name: 'AESTHETX WAYS ( WAVES )',
+    rating: '4.7',
+    reviewsCount: '50',
     type: 'Clothing store in Gaya, Bihar',
     address: 'Located in: Gaya Railway station\nR232+WF4, Gaya Station Campus Rd, Gol Bagicha, Gaya, Bihar 823002',
     phone: '070337 69997',
-    rating: '4.7',
-    reviewsCount: '50',
+    directionsUrl: 'https://maps.google.com/?q=Aesthetx+Ways+Gaya+Railway+station+Gaya+Station+Campus+Rd+Gol+Bagicha+Gaya+Bihar+823002',
     coordinates: '24.7955° N, 84.9994° E',
     transitInfo: 'Located inside Gaya Railway Station Campus',
     details: 'Located in the Railway Station Campus block. Quick transit streetwear hub.',
@@ -59,30 +60,30 @@ const STORES = [
       { day: 'Friday', time: '10:30 am – 10:30 pm' },
       { day: 'Saturday', time: '10:30 am – 10:30 pm' },
       { day: 'Sunday', time: '10:30 am – 10:30 pm' }
-    ],
-    directionsUrl: 'https://maps.google.com/?q=Aesthetx+Ways+Gaya+Railway+station+Gaya+Station+Campus+Rd+Gol+Bagicha+Gaya+Bihar+823002'
+    ]
   }
 ];
 
 export default function StoresClient() {
   const router = useRouter();
   const [activeStoreId, setActiveStoreId] = useState('patna');
-  const [isOpenNow, setIsOpenNow] = useState(false);
-  const [todayName, setTodayName] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isOpenNow, setIsOpenNow] = useState(true);
+  const [todayName, setTodayName] = useState('Monday');
 
   const activeStore = STORES.find(s => s.id === activeStoreId) || STORES[0];
 
+  // Dynamic Open/Closed Status Logic
   useEffect(() => {
     const checkStatus = () => {
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
       const totalMinutes = currentHour * 60 + currentMinute;
-      
+
       const openTime = 10 * 60 + 30;  // 10:30 AM
       const closeTime = 22 * 60 + 30; // 10:30 PM
-      
+
       setIsOpenNow(totalMinutes >= openTime && totalMinutes < closeTime);
       setTodayName(now.toLocaleDateString('en-US', { weekday: 'long' }));
     };
@@ -92,7 +93,7 @@ export default function StoresClient() {
     return () => clearInterval(interval);
   }, []);
 
-  // Set dynamic browser tab title (fallback for client side router updates)
+  // Set dynamic browser tab title
   useEffect(() => {
     if (typeof window !== 'undefined') {
       document.title = "Aesthetx Ways | Stores";
@@ -120,11 +121,11 @@ export default function StoresClient() {
 
       {/* Main Container */}
       <main className="flex-1 px-4 py-6 overflow-y-auto">
-        
+
         {/* Title Section */}
         <div className="mb-6">
-          <h1 className="font-lovelo-black text-xl tracking-widest text-zinc-900 leading-none">
-            AesthetXways Stores
+          <h1 className="font-lovelo-black text-2xl tracking-widest text-zinc-900 leading-none">
+            AesthetXways Store
           </h1>
           <p className="text-[8px] tracking-[0.2em] uppercase text-zinc-400 font-semibold mt-2.5 max-w-[300px] leading-relaxed">
             VISIT OUR PHYSICAL STORES AND EXPERIENCE THE STREETWEAR DROP-CENTER FIRSTHAND.
@@ -137,11 +138,10 @@ export default function StoresClient() {
             <button
               key={store.id}
               onClick={() => setActiveStoreId(store.id)}
-              className={`flex-1 text-center py-2.5 text-[9px] tracking-widest uppercase font-bold transition-all duration-200 rounded-[2px] cursor-pointer ${
-                activeStoreId === store.id
-                  ? 'bg-black text-white shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-900'
-              }`}
+              className={`flex-1 text-center py-2.5 text-[9px] tracking-widest uppercase font-bold transition-all duration-200 rounded-[2px] cursor-pointer ${activeStoreId === store.id
+                ? 'bg-black text-white shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-900'
+                }`}
             >
               {store.id === 'patna' ? 'Patna' : 'Gaya'}
             </button>
@@ -150,9 +150,9 @@ export default function StoresClient() {
 
         {/* Store Map Location Image */}
         <div className="relative w-full aspect-video bg-zinc-950 border border-zinc-100 rounded-[2px] overflow-hidden shadow-md group mb-2">
-          <img 
-            src={activeStoreId === 'patna' ? '/map-patna.png' : '/map-gaya.png'} 
-            alt={`${activeStore.name} Map Location`} 
+          <img
+            src={activeStoreId === 'patna' ? '/map-patna.png' : '/map-gaya.png'}
+            alt={`${activeStore.name} Map Location`}
             className="w-full h-full object-cover group-hover:scale-[1.01] transition-transform duration-700 ease-out filter brightness-[0.92] hover:brightness-100"
           />
           {/* Coordinates watermark overlay */}
@@ -210,7 +210,7 @@ export default function StoresClient() {
 
         {/* Detailed Info Cards Grid */}
         <div className="flex flex-col gap-5">
-          
+
           {/* Card 1: Store Information */}
           <div className="border border-zinc-100 bg-zinc-50/50 rounded-[2px] p-4 flex flex-col gap-3">
             <div className="flex justify-between items-start border-b border-zinc-100 pb-2">
@@ -222,15 +222,14 @@ export default function StoresClient() {
                   {activeStore.type}
                 </span>
               </div>
-              <span className={`text-[7.5px] tracking-wider uppercase font-bold px-2 py-0.5 rounded-[1px] ${
-                isOpenNow ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
-              }`}>
+              <span className={`text-[7.5px] tracking-wider uppercase font-bold px-2 py-0.5 rounded-[1px] ${isOpenNow ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                }`}>
                 {isOpenNow ? 'Open Now' : 'Closed'}
               </span>
             </div>
 
             <div className="flex flex-col gap-2">
-              
+
               {/* Reviews rating */}
               <div className="flex items-center gap-1.5 text-zinc-700">
                 <div className="flex items-center gap-0.5">
@@ -268,18 +267,17 @@ export default function StoresClient() {
                 Opening Hours
               </h3>
             </div>
-            
+
             <div className="flex flex-col gap-2.5">
               {activeStore.hours.map((item, idx) => {
                 const isToday = item.day === todayName;
                 return (
-                  <div 
-                    key={idx} 
-                    className={`flex justify-between items-center text-[9px] ${
-                      isToday 
-                        ? 'text-black font-bold border-l-2 border-black pl-2' 
-                        : 'text-zinc-500 font-medium'
-                    }`}
+                  <div
+                    key={idx}
+                    className={`flex justify-between items-center text-[9px] ${isToday
+                      ? 'text-black font-bold border-l-2 border-black pl-2'
+                      : 'text-zinc-500 font-medium'
+                      }`}
                   >
                     <span className="uppercase tracking-wider">{item.day}</span>
                     <span className="font-mono text-[9px] uppercase tracking-normal">{item.time}</span>
@@ -293,6 +291,8 @@ export default function StoresClient() {
         {/* Footer */}
         <Footer />
       </main>
+
+
 
       {/* Global CSS animations */}
       <style jsx global>{`
