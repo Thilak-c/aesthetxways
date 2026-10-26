@@ -331,12 +331,12 @@ export default function OrdersHubClient() {
                               src={
                                 order.items[2]?.image ||
                                 order.items[2]?.mainImage ||
-                                '/Logo/Logo_Full.png'
+                                '/logo.png'
                               }
                               alt=""
                               className="w-full h-full object-contain opacity-65"
                               onError={(e) => {
-                                e.currentTarget.src = '/Logo/Logo_Full.png';
+                                e.currentTarget.src = '/logo.png';
                               }}
                             />
                           </div>
@@ -347,23 +347,23 @@ export default function OrdersHubClient() {
                             src={
                               order.items[1]?.image ||
                               order.items[1]?.mainImage ||
-                              '/Logo/Logo_Full.png'
+                              '/logo.png'
                             }
                             alt=""
                             className="w-full h-full object-contain opacity-80"
                             onError={(e) => {
-                              e.currentTarget.src = '/Logo/Logo_Full.png';
+                              e.currentTarget.src = '/logo.png';
                             }}
                           />
                         </div>
 
                         <div className="absolute bottom-0 left-0 w-[54px] h-[54px] sm:w-[60px] sm:h-[60px] bg-[#f4f4f4] rounded-[14px] sm:rounded-[16px] border-2 border-white shadow-sm p-1.5 overflow-hidden flex items-center justify-center -rotate-[2deg]">
                           <img
-                            src={firstItem.image || firstItem.mainImage || '/Logo/Logo_Full.png'}
+                            src={firstItem.image || firstItem.mainImage || '/logo.png'}
                             alt={firstItem.name || 'Order item'}
                             className="w-full h-full object-contain"
                             onError={(e) => {
-                              e.currentTarget.src = '/Logo/Logo_Full.png';
+                              e.currentTarget.src = '/logo.png';
                             }}
                           />
                         </div>
@@ -375,11 +375,11 @@ export default function OrdersHubClient() {
                     ) : (
                       <div className="w-[68px] h-[68px] sm:w-[76px] sm:h-[76px] bg-[#f4f4f4] rounded-[16px] sm:rounded-[18px] flex items-center justify-center p-2 shrink-0 overflow-hidden">
                         <img
-                          src={firstItem.image || firstItem.mainImage || '/Logo/Logo_Full.png'}
+                          src={firstItem.image || firstItem.mainImage || '/logo.png'}
                           alt={firstItem.name || 'Order item'}
                           className="w-full h-full object-contain"
                           onError={(e) => {
-                            e.currentTarget.src = '/Logo/Logo_Full.png';
+                            e.currentTarget.src = '/logo.png';
                           }}
                         />
                       </div>

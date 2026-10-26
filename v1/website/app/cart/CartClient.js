@@ -1009,21 +1009,15 @@ export default function CartClient({ initialStep = 'bag' }) {
 
             <div className="border border-[#e5e5e5] rounded-[14px] p-4 bg-white flex items-center justify-between shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
               <div>
-                <p className="text-[12.5px] font-medium leading-none">
-                  <span className="text-[#008a00] font-semibold">Cashback</span>{' '}
-                  <span className="text-[#707072]">HDFC EMI Bank Of...</span>
-                </p>
+               
                 <p
                   className="text-[14px] sm:text-[14.5px] font-bold text-[#111111] mt-1.5 font-['Helvetica_Now_Text_Medium',sans-serif]"
                   style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
                 >
-                  10% off upto ₹1,500 ...
+                No Offers Available 😔
                 </p>
               </div>
-              <div className="flex flex-col items-end text-[11.5px] text-[#707072] shrink-0 pl-3">
-                <span className="leading-tight">1 of 1</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#111111] mt-1" />
-              </div>
+              
             </div>
           </div>
 

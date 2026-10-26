@@ -126,7 +126,7 @@ export default function FavouritesClient({ initialProducts = [] }) {
       category: activeModalProduct.category,
       price: formattedPrice,
       priceNumber: prodPrice,
-      image: activeModalProduct.mainImage || activeModalProduct.image || '/Logo/Logo_Full.png',
+      image: activeModalProduct.mainImage || activeModalProduct.image || '/logo.png',
       size: selectedSize,
       quantity: 1,
       color: activeModalProduct.color || 'Standard',
@@ -136,7 +136,7 @@ export default function FavouritesClient({ initialProducts = [] }) {
       ...activeModalProduct,
       selectedSize,
       priceFormatted: formattedPrice,
-      image: activeModalProduct.mainImage || activeModalProduct.image || '/Logo/Logo_Full.png',
+      image: activeModalProduct.mainImage || activeModalProduct.image || '/logo.png',
     };
 
     closeSizeModal();
@@ -209,7 +209,7 @@ export default function FavouritesClient({ initialProducts = [] }) {
               const qty = matchingCartItems.reduce((acc, it) => acc + (it.quantity || 1), 0);
               const primaryItem = matchingCartItems[0];
               const prodPrice = Number(product.price || product.priceNumber || 0);
-              const prodImg = product.mainImage || product.image || '/Logo/Logo_Full.png';
+              const prodImg = product.mainImage || product.image || '/logo.png';
 
               return (
                 <div key={prodId} className="flex flex-col">
@@ -225,7 +225,7 @@ export default function FavouritesClient({ initialProducts = [] }) {
                         className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
                         onError={(e) => {
-                          e.currentTarget.src = '/Logo/Logo_Full.png';
+                          e.currentTarget.src = '/logo.png';
                         }}
                       />
                     </Link>
@@ -393,7 +393,7 @@ export default function FavouritesClient({ initialProducts = [] }) {
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 flex items-center justify-center shrink-0 bg-neutral-50 rounded-xl overflow-hidden p-1.5">
                   <img
-                    src={activeModalProduct.mainImage || activeModalProduct.image || '/Logo/Logo_Full.png'}
+                    src={activeModalProduct.mainImage || activeModalProduct.image || '/logo.png'}
                     alt={activeModalProduct.name}
                     className="w-full rounded-[10px] h-full object-contain"
                   />

@@ -341,24 +341,24 @@ export default function OrderTrackingClient({ initialOrder, orderId }) {
                         className="w-[135px] h-[135px] sm:w-[150px] sm:h-[150px] shrink-0 flex items-center justify-center overflow-hidden bg-neutral-50 rounded-2xl group hover:opacity-90 transition-opacity cursor-pointer"
                       >
                         <img
-                          src={item.image || item.mainImage || '/Logo/Logo_Full.png'}
+                          src={item.image || item.mainImage || '/logo.png'}
                           alt={item.name}
                           loading="eager"
                           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
-                            e.currentTarget.src = '/Logo/Logo_Full.png';
+                            e.currentTarget.src = '/logo.png';
                           }}
                         />
                       </Link>
                     ) : (
                       <div className="w-[135px] h-[135px] sm:w-[150px] sm:h-[150px] shrink-0 flex items-center justify-center overflow-hidden bg-neutral-50 rounded-2xl">
                         <img
-                          src={item.image || item.mainImage || '/Logo/Logo_Full.png'}
+                          src={item.image || item.mainImage || '/logo.png'}
                           alt={item.name}
                           loading="eager"
                           className="w-full h-full object-contain"
                           onError={(e) => {
-                            e.currentTarget.src = '/Logo/Logo_Full.png';
+                            e.currentTarget.src = '/logo.png';
                           }}
                         />
                       </div>

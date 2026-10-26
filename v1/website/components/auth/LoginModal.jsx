@@ -7,9 +7,17 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
   // Step: 'mobile' | 'otp' | 'details' | 'email-otp' | 'success' | 'delivery-address'
   const [step, setStep] = useState(initialStep);
 
+  // Verification Settings controlled from Admin Panel
+  const [authSettings, setAuthSettings] = useState({
+    enableNumberVerification: false,
+    enableEmailVerification: false,
+    loaded: false,
+  });
+
   // Step 1: Mobile
   const [mobileNumber, setMobileNumber] = useState('');
   const [isMobileFocused, setIsMobileFocused] = useState(false);
+  const [isCheckingUser, setIsCheckingUser] = useState(false);
   const mobileInputRef = useRef(null);
 
   // Step 2: Mobile OTP
@@ -66,52 +74,77 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
   const [isVisible, setIsVisible] = useState(false);
   const closeTimerRef = useRef(null);
 
-  // Manage mount/unmount and smooth animation
+  // Manage mount/unmount and smooth animation with dynamic settings
   useEffect(() => {
     if (isOpen) {
       clearTimeout(closeTimerRef.current);
-      if (initialStep === 'delivery-address') {
-        setStep('delivery-address');
-        setIsDeliveryAddressVisible(true);
-        setAddressSlideIn(true);
-        try {
-          const stored = localStorage.getItem('sonu_shipping_address');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            setAddrPincode(parsed.pincode || '');
-            setAddrHouseNo(parsed.houseNo || '');
-            setAddrRoadArea(parsed.roadArea || parsed.street || '');
-            setAddrName(parsed.name || '');
-            setAddrMobile(parsed.mobile || '');
-            setDetectedCity(parsed.city || '');
-            setDetectedState(parsed.state || '');
-            setDeliveryEtd(parsed.deliveryEtd || '');
-            setPincodeServiceable(true);
-          }
-        } catch (e) {}
-      } else {
-        setStep('mobile');
-      }
-      setIsMounted(true);
-      requestAnimationFrame(() => {
-        setIsVisible(true);
-      });
+      // Pre-fill existing user info if available in localStorage
+      try {
+        const storedMobile = (localStorage.getItem('aw_user_mobile') || localStorage.getItem('sonu_user_mobile')) || '';
+        const storedName = (localStorage.getItem('aw_user_name') || localStorage.getItem('sonu_user_name')) || '';
+        const storedEmail = (localStorage.getItem('aw_user_email') || localStorage.getItem('sonu_user_email')) || '';
+        if (storedMobile) setMobileNumber(storedMobile);
+        if (storedEmail) setEmail(storedEmail);
+        if (storedName) {
+          const parts = storedName.split(' ');
+          setFirstName(parts[0] || '');
+          setLastName(parts.slice(1).join(' ') || '');
+        }
+      } catch (e) {}
+
+      const applyStep = () => {
+        if (initialStep === 'delivery-address') {
+          setStep('delivery-address');
+          setIsDeliveryAddressVisible(true);
+          setAddressSlideIn(true);
+          try {
+            const stored = (localStorage.getItem('aw_shipping_address') || localStorage.getItem('sonu_shipping_address'));
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              setAddrPincode(parsed.pincode || '');
+              setAddrHouseNo(parsed.houseNo || '');
+              setAddrRoadArea(parsed.roadArea || parsed.street || '');
+              setAddrName(parsed.name || '');
+              setAddrMobile(parsed.mobile || '');
+              setDetectedCity(parsed.city || '');
+              setDetectedState(parsed.state || '');
+              setDeliveryEtd(parsed.deliveryEtd || '');
+              setPincodeServiceable(true);
+            }
+          } catch (e) {}
+        } else {
+          // Always ask for the phone number first
+          setStep('mobile');
+        }
+        setIsMounted(true);
+        requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
+      };
+
+      fetch('/api/settings')
+        .then((res) => res.json())
+        .then((data) => {
+          const numVer = data?.enableNumberVerification === true;
+          const emailVer = data?.enableEmailVerification === true;
+          setAuthSettings({
+            enableNumberVerification: numVer,
+            enableEmailVerification: emailVer,
+            loaded: true,
+          });
+          applyStep();
+        })
+        .catch(() => {
+          applyStep();
+        });
     } else {
       setIsVisible(false);
       closeTimerRef.current = setTimeout(() => {
         setIsMounted(false);
         setStep('mobile');
-        setMobileNumber('');
-        setIsMobileFocused(false);
         setOtp(['', '', '', '', '', '']);
         setOtpVerifyState('idle');
         setDetailsSlideIn(false);
-        setFirstName('');
-        setLastName('');
-        setPreference('');
-        setDob('');
-        setEmail('');
-        setAgreed(true);
         setFocusedField(null);
         setIsPrefDropdownOpen(false);
         setIsSendingEmail(false);
@@ -252,41 +285,255 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
     setMobileNumber(val);
   };
 
-  const handleGetOtp = (e) => {
-    e.preventDefault();
-    if (!isMobileValid) return;
-    setStep('otp');
-    setTimer(30);
-  };
+  const handleMobileSubmit = async (e) => {
+    e?.preventDefault();
+    if (!isMobileValid || isCheckingUser) return;
 
-  // Verify mobile OTP: Shows green tick "Verified", then overlays 100% VH "Almost there!" on top
-  const handleVerifyOtp = (e) => {
-    if (e) e.preventDefault();
-    if (!isOtpValid || otpVerifyState !== 'idle') return;
+    if (authSettings.enableNumberVerification) {
+      setStep('otp');
+      setTimer(30);
+      return;
+    }
 
-    // 1. Show green tick ("Verified") on OTP button
-    setOtpVerifyState('verified');
+    // Number verification disabled by Admin:
+    // Look up customer in MongoDB database using phone number as unique identifier
+    setIsCheckingUser(true);
+    try {
+      const res = await fetch(`/api/user/sync?mobile=${mobileNumber.trim()}`);
+      const data = await res.json();
 
-    // 2. Overlay 100% VH "Almost there!" on top without moving the OTP modal
-    setTimeout(() => {
+      if (data.success && data.user) {
+        const user = data.user;
+        const hasAddress = Boolean(
+          user.primaryAddress &&
+          user.primaryAddress.houseNo &&
+          user.primaryAddress.pincode
+        );
+        const hasDetails = Boolean(
+          (user.name || user.firstName) && user.email
+        );
+
+        // Pre-populate state
+        if (user.firstName) setFirstName(user.firstName);
+        if (user.lastName) setLastName(user.lastName);
+        if (user.name && !user.firstName) {
+          const parts = user.name.split(' ');
+          setFirstName(parts[0] || '');
+          setLastName(parts.slice(1).join(' ') || '');
+        }
+        if (user.email) setEmail(user.email);
+        if (user.preference) setPreference(user.preference);
+        if (user.dob) setDob(user.dob);
+
+        // If user already has full data (personal info + address):
+        // Auto-load it and open Select Address page directly!
+        if (hasAddress) {
+          const addr = user.primaryAddress;
+          setAddrPincode(addr.pincode || '');
+          setAddrHouseNo(addr.houseNo || '');
+          setAddrRoadArea(addr.street || addr.roadArea || '');
+          setDetectedCity(addr.city || '');
+          setDetectedState(addr.state || '');
+          setPincodeServiceable(true);
+          const fullName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer';
+          setAddrName(fullName);
+          setAddrMobile(mobileNumber.trim());
+
+          const shippingAddress = {
+            firstName: user.firstName || fullName.split(' ')[0] || 'Valued',
+            lastName: user.lastName || fullName.split(' ').slice(1).join(' ') || 'Customer',
+            name: fullName,
+            mobile: mobileNumber.trim(),
+            houseNo: addr.houseNo || '',
+            street: addr.street || addr.roadArea || '',
+            roadArea: addr.street || addr.roadArea || '',
+            landmark: addr.landmark || '',
+            addressLine1: `${addr.houseNo || ''}, ${addr.street || addr.roadArea || ''}`,
+            city: addr.city || '',
+            state: addr.state || '',
+            pincode: addr.pincode || '',
+            isPrimary: true,
+          };
+
+          // Save everything into localStorage for the active session
+          localStorage.setItem('sonu_user_mobile', mobileNumber.trim());
+          localStorage.setItem('sonu_user_name', fullName);
+        localStorage.setItem('aw_user_name', fullName);
+          localStorage.setItem('sonu_user_email', user.email || '');
+        localStorage.setItem('aw_user_email', user.email || '');
+          localStorage.setItem('sonu_shipping_address', JSON.stringify(shippingAddress));
+          localStorage.setItem('sonu_user_profile', JSON.stringify(user));
+
+          // Notify checkout page
+          window.dispatchEvent(new Event('auth-changed'));
+          window.dispatchEvent(new Event('address-updated'));
+
+          // Close modal: customer lands directly on the Select Address & Pay page!
+          setIsCheckingUser(false);
+          onClose();
+          return;
+        }
+
+        // If user has details but no address saved:
+        if (hasDetails) {
+          localStorage.setItem('sonu_user_mobile', mobileNumber.trim());
+          localStorage.setItem('sonu_user_name', user.name || `${user.firstName} ${user.lastName}`.trim());
+          localStorage.setItem('sonu_user_email', user.email || '');
+        localStorage.setItem('aw_user_email', user.email || '');
+          window.dispatchEvent(new Event('auth-changed'));
+
+          handleTransitionToDeliveryAddress(100);
+          setIsCheckingUser(false);
+          return;
+        }
+      }
+
+      // Customer does not have an entry (or incomplete data):
+      // Open personal details page ("Almost there!")
+      localStorage.setItem('sonu_user_mobile', mobileNumber.trim());
       setStep('details');
       setDetailsSlideIn(false);
-
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setDetailsSlideIn(true);
         });
       });
-
       setTimeout(() => {
         firstNameInputRef.current?.focus();
         setFocusedField('firstName');
       }, 200);
+    } catch (err) {
+      console.error('Customer lookup error:', err);
+      setStep('details');
+      setDetailsSlideIn(false);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setDetailsSlideIn(true);
+        });
+      });
+    } finally {
+      setIsCheckingUser(false);
+    }
+  };
 
+  // Verify mobile OTP: Shows green tick "Verified", checks database, then proceeds
+  const handleVerifyOtp = async (e) => {
+    if (e) e.preventDefault();
+    if (!isOtpValid || otpVerifyState !== 'idle') return;
+
+    setOtpVerifyState('verified');
+
+    try {
+      const res = await fetch(`/api/user/sync?mobile=${mobileNumber.trim()}`);
+      const data = await res.json();
+
+      if (data.success && data.user) {
+        const user = data.user;
+        const hasAddress = Boolean(
+          user.primaryAddress &&
+          user.primaryAddress.houseNo &&
+          user.primaryAddress.pincode
+        );
+        const hasDetails = Boolean(
+          (user.name || user.firstName) && user.email
+        );
+
+        if (user.firstName) setFirstName(user.firstName);
+        if (user.lastName) setLastName(user.lastName);
+        if (user.name && !user.firstName) {
+          const parts = user.name.split(' ');
+          setFirstName(parts[0] || '');
+          setLastName(parts.slice(1).join(' ') || '');
+        }
+        if (user.email) setEmail(user.email);
+        if (user.preference) setPreference(user.preference);
+        if (user.dob) setDob(user.dob);
+
+        if (hasAddress) {
+          const addr = user.primaryAddress;
+          setAddrPincode(addr.pincode || '');
+          setAddrHouseNo(addr.houseNo || '');
+          setAddrRoadArea(addr.street || addr.roadArea || '');
+          setDetectedCity(addr.city || '');
+          setDetectedState(addr.state || '');
+          setPincodeServiceable(true);
+          const fullName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer';
+          setAddrName(fullName);
+          setAddrMobile(mobileNumber.trim());
+
+          const shippingAddress = {
+            firstName: user.firstName || fullName.split(' ')[0] || 'Valued',
+            lastName: user.lastName || fullName.split(' ').slice(1).join(' ') || 'Customer',
+            name: fullName,
+            mobile: mobileNumber.trim(),
+            houseNo: addr.houseNo || '',
+            street: addr.street || addr.roadArea || '',
+            roadArea: addr.street || addr.roadArea || '',
+            landmark: addr.landmark || '',
+            addressLine1: `${addr.houseNo || ''}, ${addr.street || addr.roadArea || ''}`,
+            city: addr.city || '',
+            state: addr.state || '',
+            pincode: addr.pincode || '',
+            isPrimary: true,
+          };
+
+          localStorage.setItem('sonu_user_mobile', mobileNumber.trim());
+          localStorage.setItem('sonu_user_name', fullName);
+        localStorage.setItem('aw_user_name', fullName);
+          localStorage.setItem('sonu_user_email', user.email || '');
+        localStorage.setItem('aw_user_email', user.email || '');
+          localStorage.setItem('sonu_shipping_address', JSON.stringify(shippingAddress));
+          localStorage.setItem('sonu_user_profile', JSON.stringify(user));
+
+          window.dispatchEvent(new Event('auth-changed'));
+          window.dispatchEvent(new Event('address-updated'));
+
+          setTimeout(() => {
+            setOtpVerifyState('idle');
+            onClose();
+          }, 350);
+          return;
+        }
+
+        if (hasDetails) {
+          localStorage.setItem('sonu_user_mobile', mobileNumber.trim());
+          localStorage.setItem('sonu_user_name', user.name || `${user.firstName} ${user.lastName}`.trim());
+          localStorage.setItem('sonu_user_email', user.email || '');
+        localStorage.setItem('aw_user_email', user.email || '');
+          window.dispatchEvent(new Event('auth-changed'));
+
+          setTimeout(() => {
+            setOtpVerifyState('idle');
+            handleTransitionToDeliveryAddress(100);
+          }, 350);
+          return;
+        }
+      }
+
+      // New user after OTP: open details
       setTimeout(() => {
+        setStep('details');
+        setDetailsSlideIn(false);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setDetailsSlideIn(true);
+          });
+        });
+        setTimeout(() => {
+          firstNameInputRef.current?.focus();
+          setFocusedField('firstName');
+        }, 200);
+        setTimeout(() => {
+          setOtpVerifyState('idle');
+        }, 500);
+      }, 400);
+    } catch (err) {
+      setTimeout(() => {
+        setStep('details');
+        setDetailsSlideIn(true);
         setOtpVerifyState('idle');
-      }, 500);
-    }, 400);
+      }, 400);
+    }
   };
 
   const handleDobChange = (e) => {
@@ -300,11 +547,48 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
     setDob(formatted);
   };
 
-  // Triggered when user clicks "Verify Email" on the "Almost there!" form
-  const handleSendVerificationEmail = async (e) => {
+  // Triggered when user submits the "Almost there!" details form
+  const handleSaveDetails = async (e) => {
     e.preventDefault();
     if (!isDetailsValid || isSendingEmail) return;
 
+    // If Email Verification is DISABLED by Admin: Skip email OTP and jump directly to Delivery Address
+    if (!authSettings.enableEmailVerification) {
+      const userProfile = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        preference,
+        dob,
+        email: email.trim(),
+        mobile: mobileNumber,
+        isEmailVerified: false,
+      };
+
+      try {
+        localStorage.setItem('sonu_user_mobile', mobileNumber);
+        localStorage.setItem('aw_user_mobile', mobileNumber);
+        localStorage.setItem('sonu_user_name', `${userProfile.firstName} ${userProfile.lastName}`.trim());
+        localStorage.setItem('aw_user_name', `${userProfile.firstName} ${userProfile.lastName}`.trim());
+        localStorage.setItem('sonu_user_email', userProfile.email);
+        localStorage.setItem('aw_user_email', userProfile.email);
+        localStorage.setItem('sonu_user_profile', JSON.stringify(userProfile));
+        localStorage.setItem('aw_user_profile', JSON.stringify(userProfile));
+        window.dispatchEvent(new Event('auth-changed'));
+
+        // Sync user profile to MongoDB in background
+        fetch('/api/user/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userProfile),
+        }).catch((e) => console.error('[MongoDB] User profile sync error:', e));
+      } catch (err) {}
+
+      // Transition smoothly and directly to Delivery Address
+      handleTransitionToDeliveryAddress(100);
+      return;
+    }
+
+    // Otherwise, Email Verification is ENABLED: send email OTP
     setIsSendingEmail(true);
     setEmailError('');
 
@@ -420,8 +704,8 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
     }
   };
 
-  // Transition from "Welcome to Aesthetx Ways." -> Fade out -> Slide up Delivery Address
-  const handleTransitionToDeliveryAddress = () => {
+  // Transition from "Welcome to Aesthetx Ways." or Details -> Slide up Delivery Address
+  const handleTransitionToDeliveryAddress = (delay = 450) => {
     clearTimeout(closeTimerRef.current);
     // 1. Smoothly fade out the welcome message
     setIsWelcomeFadingOut(true);
@@ -433,11 +717,11 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
       setAddressSlideIn(false);
 
       // Autofill Name and Mobile from user profile or stored session
-      const storedName = typeof window !== 'undefined' ? localStorage.getItem('sonu_user_name') : '';
+      const storedName = typeof window !== 'undefined' ? (localStorage.getItem('aw_user_name') || localStorage.getItem('sonu_user_name')) : '';
       const computedName = `${firstName} ${lastName}`.trim();
       setAddrName(computedName || storedName || '');
 
-      const storedMobile = typeof window !== 'undefined' ? localStorage.getItem('sonu_user_mobile') : '';
+      const storedMobile = typeof window !== 'undefined' ? (localStorage.getItem('aw_user_mobile') || localStorage.getItem('sonu_user_mobile')) : '';
       setAddrMobile(mobileNumber || storedMobile || '');
 
       // Check Shiprocket ETD for default/entered pincode
@@ -450,7 +734,7 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
           setAddressSlideIn(true);
         });
       });
-    }, 450);
+    }, delay);
   };
 
   // Complete profile saving after email code verification (Dev mode: accepts any 6-digit OTP)
@@ -473,8 +757,10 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
 
     try {
       localStorage.setItem('sonu_user_mobile', mobileNumber);
+        localStorage.setItem('aw_user_mobile', mobileNumber);
       localStorage.setItem('sonu_user_name', `${userProfile.firstName} ${userProfile.lastName}`.trim());
       localStorage.setItem('sonu_user_email', userProfile.email);
+        localStorage.setItem('aw_user_email', userProfile.email);
       localStorage.setItem('sonu_user_profile', JSON.stringify(userProfile));
       window.dispatchEvent(new Event('auth-changed'));
 
@@ -534,22 +820,34 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
 
     try {
       localStorage.setItem('sonu_shipping_address', JSON.stringify(shippingAddress));
+      localStorage.setItem('aw_shipping_address', JSON.stringify(shippingAddress));
       localStorage.setItem('sonu_user_name', finalName);
+      localStorage.setItem('aw_user_name', finalName);
       if (finalMobile) {
         localStorage.setItem('sonu_user_mobile', finalMobile);
+        localStorage.setItem('aw_user_mobile', finalMobile);
       }
       window.dispatchEvent(new Event('auth-changed'));
       window.dispatchEvent(new Event('address-updated'));
 
-      // Sync delivery address to MongoDB
-      const storedEmail = typeof window !== 'undefined' ? localStorage.getItem('sonu_user_email') || '' : '';
+      // Sync delivery address & full profile to MongoDB
+      const storedEmail = typeof window !== 'undefined' ? (localStorage.getItem('aw_user_email') || localStorage.getItem('sonu_user_email')) || '' : '';
+      let storedProfile = {};
+      try {
+        storedProfile = JSON.parse(localStorage.getItem('sonu_user_profile') || '{}');
+      } catch (e) {}
+
       fetch('/api/user/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          firstName: firstName.trim() || storedProfile.firstName || '',
+          lastName: lastName.trim() || storedProfile.lastName || '',
           name: finalName,
           mobile: finalMobile,
           email: storedEmail,
+          preference: preference || storedProfile.preference || '',
+          dob: dob || storedProfile.dob || '',
           address: shippingAddress,
         }),
       }).catch((e) => console.error('[MongoDB] Address sync error:', e));
@@ -620,16 +918,16 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
         {step === 'mobile' && (
           <div>
             {/* Centered Brand Logo */}
-            <div className="flex items-center justify-center gap-2 pt-1 pb-1">
+            <div className="flex items-center justify-center gap-2.5 pt-1 pb-1">
               <img
                 src="/logo_t.svg"
                 alt="Aesthetx Ways Logo"
-                className="h-6 sm:h-7 w-auto object-contain"
+                className="h-7 sm:h-8 w-auto object-contain"
                 loading="eager"
                 fetchPriority="high"
               />
-              <span className="font-lovelo-black text-[15px] sm:text-[17px] tracking-widest text-black uppercase mt-0.5 select-none">
-                Aesthetx Ways
+              <span className="text-[17px] sm:text-[19px] font-black tracking-widest uppercase text-[#111111]" style={{ fontFamily: "var(--font-lovelo-black), 'Helvetica Now Text Medium', sans-serif" }}>
+                AESTHETX WAYS
               </span>
             </div>
 
@@ -647,7 +945,7 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
             </p>
 
             {/* Input Form */}
-            <form onSubmit={handleGetOtp} className="mt-6">
+            <form onSubmit={handleMobileSubmit} className="mt-6">
               {/* Rounded Rectangle Input Field with Notched Outline Floating Label */}
               <div
                 onClick={() => mobileInputRef.current?.focus()}
@@ -697,18 +995,46 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
                 </div>
               </div>
 
-              {/* Get OTP Button */}
+              {/* Continue / Get OTP Button */}
               <button
                 type="submit"
-                disabled={!isMobileValid}
-                className={`w-full py-3.5 sm:py-4 rounded-full mt-5 text-[15px] sm:text-[16px] font-medium transition-all ${
-                  isMobileValid
+                disabled={!isMobileValid || isCheckingUser}
+                className={`w-full py-3.5 sm:py-4 rounded-full mt-5 text-[15px] sm:text-[16px] font-medium transition-all flex items-center justify-center gap-2 ${
+                  isMobileValid && !isCheckingUser
                     ? 'bg-[#111111] hover:bg-black text-white cursor-pointer active:scale-[0.99] shadow-sm'
                     : 'bg-[#e5e5e5] text-[#707072] cursor-not-allowed'
                 }`}
                 style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
               >
-                Get OTP
+                {isCheckingUser ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span>Continuing...</span>
+                  </>
+                ) : authSettings.enableNumberVerification ? (
+                  'Get OTP'
+                ) : (
+                  'Continue'
+                )}
               </button>
             </form>
 
@@ -740,19 +1066,19 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
         )}
 
         {/* STEP 2: MOBILE OTP VERIFICATION (Zero movement, stays in place) */}
-        {(step === 'otp' || isOnboardingFullScreen) && (
+        {(step === 'otp' || (isOnboardingFullScreen && authSettings.enableNumberVerification)) && (
           <div>
             {/* Centered Brand Logo */}
-            <div className="flex items-center justify-center gap-2 pt-1 pb-1">
+            <div className="flex items-center justify-center gap-2.5 pt-1 pb-1">
               <img
                 src="/logo_t.svg"
                 alt="Aesthetx Ways Logo"
-                className="h-6 sm:h-7 w-auto object-contain"
+                className="h-7 sm:h-8 w-auto object-contain"
                 loading="eager"
                 fetchPriority="high"
               />
-              <span className="font-lovelo-black text-[15px] sm:text-[17px] tracking-widest text-black uppercase mt-0.5 select-none">
-                Aesthetx Ways
+              <span className="text-[17px] sm:text-[19px] font-black tracking-widest uppercase text-[#111111]" style={{ fontFamily: "var(--font-lovelo-black), 'Helvetica Now Text Medium', sans-serif" }}>
+                AESTHETX WAYS
               </span>
             </div>
 
@@ -893,16 +1219,16 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
             {step === 'details' && (
               <div>
                 {/* Centered Brand Logo */}
-                <div className="flex items-center justify-center gap-2 pt-1 pb-1">
+                <div className="flex items-center justify-center gap-2.5 pt-1 pb-1">
                   <img
                     src="/logo_t.svg"
                     alt="Aesthetx Ways Logo"
-                    className="h-6 sm:h-7 w-auto object-contain"
+                    className="h-7 sm:h-8 w-auto object-contain"
                     loading="eager"
                     fetchPriority="high"
                   />
-                  <span className="font-lovelo-black text-[15px] sm:text-[17px] tracking-widest text-black uppercase mt-0.5 select-none">
-                    Aesthetx Ways
+                  <span className="text-[17px] sm:text-[19px] font-black tracking-widest uppercase text-[#111111]" style={{ fontFamily: "var(--font-lovelo-black), 'Helvetica Now Text Medium', sans-serif" }}>
+                    AESTHETX WAYS
                   </span>
                 </div>
 
@@ -920,7 +1246,7 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
                 </p>
 
                 {/* Form Fields with Notched Outline Floating Label Animation */}
-                <form onSubmit={handleSendVerificationEmail} className="mt-6 space-y-3.5 sm:space-y-4">
+                <form onSubmit={handleSaveDetails} className="mt-6 space-y-3.5 sm:space-y-4">
                   {/* 1. First Name* */}
                   <div
                     className={`relative w-full h-[52px] sm:h-[54px] px-4 rounded-[8px] border transition-colors cursor-text bg-white flex items-center ${
@@ -1173,7 +1499,7 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
                     </p>
                   )}
 
-                  {/* Verify Email Pill Button */}
+                  {/* Action Button: Verify Email or Continue */}
                   <button
                     type="submit"
                     disabled={!isDetailsValid || isSendingEmail}
@@ -1208,8 +1534,10 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
                         </svg>
                         <span>Sending verification email...</span>
                       </>
-                    ) : (
+                    ) : authSettings.enableEmailVerification ? (
                       'Verify Email'
+                    ) : (
+                      'Continue'
                     )}
                   </button>
                 </form>
@@ -1220,16 +1548,16 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
             {step === 'email-otp' && (
               <div>
                 {/* Centered Brand Logo */}
-                <div className="flex items-center justify-center gap-2 pt-1 pb-1">
+                <div className="flex items-center justify-center gap-2.5 pt-1 pb-1">
                   <img
                     src="/logo_t.svg"
                     alt="Aesthetx Ways Logo"
-                    className="h-6 sm:h-7 w-auto object-contain"
+                    className="h-7 sm:h-8 w-auto object-contain"
                     loading="eager"
                     fetchPriority="high"
                   />
-                  <span className="font-lovelo-black text-[15px] sm:text-[17px] tracking-widest text-black uppercase mt-0.5 select-none">
-                    Aesthetx Ways
+                  <span className="text-[17px] sm:text-[19px] font-black tracking-widest uppercase text-[#111111]" style={{ fontFamily: "var(--font-lovelo-black), 'Helvetica Now Text Medium', sans-serif" }}>
+                    AESTHETX WAYS
                   </span>
                 </div>
 
@@ -1369,16 +1697,16 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
                 }`}
               >
                 {/* Centered Brand Logo at top */}
-                <div className="flex items-center justify-center gap-2 pt-1 pb-1">
+                <div className="flex items-center justify-center gap-2.5 pt-1 pb-1">
                   <img
                     src="/logo_t.svg"
                     alt="Aesthetx Ways Logo"
-                    className="h-6 sm:h-7 w-auto object-contain"
+                    className="h-7 sm:h-8 w-auto object-contain"
                     loading="eager"
                     fetchPriority="high"
                   />
-                  <span className="font-lovelo-black text-[15px] sm:text-[17px] tracking-widest text-black uppercase mt-0.5 select-none">
-                    Aesthetx Ways
+                  <span className="text-[17px] sm:text-[19px] font-black tracking-widest uppercase text-[#111111]" style={{ fontFamily: "var(--font-lovelo-black), 'Helvetica Now Text Medium', sans-serif" }}>
+                    AESTHETX WAYS
                   </span>
                 </div>
 
@@ -1549,36 +1877,7 @@ export default function LoginModal({ isOpen, onClose, initialStep = 'mobile' }) 
                   </div>
 
                   {/* Shiprocket Delivery Expected Date */}
-                  {isPincodeLoading ? (
-                    <div className="flex items-center gap-2 mt-2 px-1 text-[13px] text-[#707072] animate-pulse">
-                      <div className="w-3.5 h-3.5 rounded-full border-2 border-[#111111] border-t-transparent animate-spin shrink-0" />
-                      <span>Checking delivery date via Shiprocket...</span>
-                    </div>
-                  ) : pincodeServiceable === false ? (
-                    <div className="flex items-center gap-2 mt-2 px-1 text-[13px] text-[#e53935]">
-                      <svg
-                        className="w-4 h-4 text-[#e53935] shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="15" y1="9" x2="9" y2="15" />
-                        <line x1="9" y1="9" x2="15" y2="15" />
-                      </svg>
-                      <span>Delivery not available for PIN code {addrPincode}</span>
-                    </div>
-                  ) : deliveryEtd ? (
-                    <div className="flex items-center gap-2 px-1 text-[13px] text-[#111111]">
-                    
-                      <span>
-                        Expected delivery by <strong className="font-semibold text-[#111111]">{deliveryEtd}</strong>
-                      </span>
-                    </div>
-                  ) : null}
+                
                 </div>
 
                 {/* 2. House/ Flat/ Office No. */}
