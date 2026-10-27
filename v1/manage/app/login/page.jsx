@@ -24,7 +24,7 @@ export default function LoginPage() {
       console.error("Failed to parse NEXT_PUBLIC_VALID_CREDENTIALS:", e);
     }
     return [
-      { adminId: "Aesthetx Ways", password: "aesthetx123" },
+      // { adminId: "Aesthetx Ways", password: "aesthetx123" },
       { adminId: "Thilak", password: "8008439762" },
       { adminId: "Prince", password: "7033769997" }
     ];
@@ -50,7 +50,7 @@ export default function LoginPage() {
         }));
 
         toast.success("Welcome to Website Store Inventory!");
-        router.push("/website");
+        router.push("/website/orders");
       } else {
         toast.error("Invalid credentials");
         setIsLoading(false);
@@ -67,7 +67,7 @@ export default function LoginPage() {
       <div className="relative w-full max-w-sm sm:max-w-md animate-fadeIn">
         {/* Logo Header */}
         <div className="flex flex-col items-center mb-6">
-          <div className="w-11 h-11 bg-white rounded-2xl flex items-center justify-center shadow-xs border border-slate-155 p-2 mb-2">
+          <div className="w-11 h-11 bg-white rounded-2xl flex items-center justify-center  p-2 mb-2">
             <img src="/logo.png" alt="Aesthetx Ways Logo" className="w-7 h-7 object-contain" />
           </div>
           <h1 className="text-base font-bold text-slate-900 font-poppins tracking-tight">Aesthetx Ways</h1>
@@ -89,7 +89,7 @@ export default function LoginPage() {
                   value={credentials.adminId}
                   onChange={(e) => setCredentials({ ...credentials, adminId: e.target.value })}
                   placeholder="Enter admin ID"
-                  className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-250/80 focus:border-slate-800 rounded-2xl text-xs focus:outline-none transition-all font-medium"
+                  className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300/80 focus:border-slate-800 rounded-xl text-xs focus:outline-none transition-all font-medium"
                   required
                 />
               </div>
@@ -103,7 +103,7 @@ export default function LoginPage() {
                     value={credentials.password}
                     onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                     placeholder="Enter password"
-                    className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-250/80 focus:border-slate-800 rounded-2xl text-xs focus:outline-none transition-all pr-12 font-medium"
+                    className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300/80 focus:border-slate-800 rounded-xl text-xs focus:outline-none transition-all pr-12 font-medium"
                     required
                   />
                   <button

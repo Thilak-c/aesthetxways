@@ -1090,6 +1090,88 @@ export const updateProfileByEmail = mutation({
 	}
 });
 
+export const getUserByPhone = query({
+	args: { phone: v.string() },
+	handler: async (ctx, { phone }) => {
+		const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+		if (!cleanPhone || cleanPhone.length !== 10) return null;
 
+		return await ctx.db
+			.query("users")
+			.withIndex("by_phone", (q) => q.eq("phoneNumber", cleanPhone))
+			.filter(q => q.eq(q.field("isDeleted"), undefined))
+			.first();
+	}
+});
 
- 
+export const upsertUserByPhone = mutation({
+	args: {
+		phone: v.string(),
+		fullName: v.optional(v.string()),
+		email: v.optional(v.string()),
+		address: v.optional(v.string()),
+		houseNo: v.optional(v.string()),
+		area: v.optional(v.string()),
+		city: v.optional(v.string()),
+		state: v.optional(v.string()),
+		pincode: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		const cleanPhone = args.phone.replace(/\D/g, '').slice(-10);
+		if (!cleanPhone || cleanPhone.length !== 10) {
+			throw new Error("Invalid 10-digit phone number");
+		}
+
+		const existingUser = await ctx.db
+			.query("users")
+			.withIndex("by_phone", (q) => q.eq("phoneNumber", cleanPhone))
+			.filter(q => q.eq(q.field("isDeleted"), undefined))
+			.first();
+
+		const normalizedEmail = args.email ? args.email.toLowerCase().trim() : undefined;
+		const now = nowIso();
+
+		const addressObj = {
+			flatNo: args.houseNo || "",
+			area: args.area || "",
+			city: args.city || "",
+			state: args.state || "",
+			pinCode: args.pincode || "",
+			fullAddress: args.address || "",
+		};
+
+		if (existingUser) {
+			const patchData = {
+				updatedAt: now,
+			};
+			if (args.fullName) patchData.name = args.fullName;
+			if (normalizedEmail) patchData.email = normalizedEmail;
+
+			if (args.address || args.city || args.pincode) {
+				const existingAddress = existingUser.address || {};
+				patchData.address = {
+					flatNo: args.houseNo !== undefined ? args.houseNo : (existingAddress.flatNo || ""),
+					area: args.area !== undefined ? args.area : (existingAddress.area || ""),
+					city: args.city !== undefined ? args.city : (existingAddress.city || ""),
+					state: args.state !== undefined ? args.state : (existingAddress.state || ""),
+					pinCode: args.pincode !== undefined ? args.pincode : (existingAddress.pinCode || ""),
+					fullAddress: args.address !== undefined ? args.address : (existingAddress.fullAddress || ""),
+				};
+			}
+
+			await ctx.db.patch(existingUser._id, patchData);
+			return { success: true, userId: existingUser._id, isNew: false };
+		} else {
+			const newUserId = await ctx.db.insert("users", {
+				phoneNumber: cleanPhone,
+				email: normalizedEmail,
+				name: args.fullName || "Customer",
+				role: "user",
+				createdAt: now,
+				updatedAt: now,
+				address: addressObj,
+			});
+			return { success: true, userId: newUserId, isNew: true };
+		}
+	}
+});

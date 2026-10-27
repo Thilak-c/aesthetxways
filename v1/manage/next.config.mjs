@@ -8,7 +8,7 @@ const nextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ['*.trycloudflare.com', 'localhost'],
+  allowedDevOrigins: ['fee568a0f5638e.lhr.life', '*.trycloudflare.com', 'localhost'],
 };
 
 export default nextConfig;

@@ -244,7 +244,7 @@ export default function BannersPage() {
           {/* Header */}
           <div className="mb-8 pt-12 lg:pt-0">
             <Link
-              href="/website"
+              href="/website/analytics"
               className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors uppercase tracking-wider mb-3"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> <span>Back</span>

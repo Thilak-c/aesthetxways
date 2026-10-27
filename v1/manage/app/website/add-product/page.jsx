@@ -10,16 +10,10 @@ import {
   X,
   Upload,
   CheckCircle2,
-  Globe,
   ArrowLeft,
-  Tag,
   DollarSign,
   Layers,
-  Palette,
-  Eye,
   IndianRupee,
-  BadgeAlert,
-  Percent,
   RefreshCw,
   Image as ImageIcon
 } from "lucide-react";
@@ -47,7 +41,7 @@ const MAIN_CATEGORIES = [
 
 const CATEGORY_MAP = {
   footwear: ["Shoes", "boots", "sandals", "sneakers"],
-  apparel: ["Shirts", "t-shirts", "jackets", "pants", "dresses", "socks"],
+  apparel: ["Shirts", "t-shirts", "Waffle T-shirt", "jackets", "pants", "jeans", "dresses", "socks", "jersey", "jerseys"],
   headwear: ["Hats", "caps", "beanies"],
   eyewear: ["Glasses", "sunglasses"]
 };
@@ -167,7 +161,7 @@ export default function WebsiteAddProduct() {
     setForm({
       sku: "",
       name: "",
-      mainCategory: "footwear",
+      mainCategory: "apparel",
       category: "",
       color: "",
       secondaryColor: "",
@@ -189,7 +183,6 @@ export default function WebsiteAddProduct() {
     else setUploadingState(prev => ({ ...prev, secondary: true }));
     
     try {
-      // Compress and process client-side (HEIC conversion + Canvas compression)
       const processedFile = await processImageForUpload(file);
       if (!processedFile) return;
 
@@ -215,7 +208,6 @@ export default function WebsiteAddProduct() {
     }
   };
 
-  // Profit Calculations
   const cp = parseFloat(form.costPrice) || 0;
   const sp = parseFloat(form.sellingPrice) || 0;
   const profit = sp - cp;
@@ -223,29 +215,29 @@ export default function WebsiteAddProduct() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen bg-slate-50/50">
+      <div className="flex min-h-screen bg-white">
         <Sidebar />
-        <main className="flex-1 p-4 lg:p-8 flex items-center justify-center">
-          <div className="bg-white rounded-3xl p-10 border border-slate-200/80 text-center max-w-md shadow-lg animate-fadeIn">
-            <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-5 shadow-md shadow-slate-100">
-              <CheckCircle2 className="w-8 h-8 text-white" />
+        <main className="flex-1 p-6 lg:p-8 flex items-center justify-center">
+          <div className="bg-white rounded-sm p-8 border border-zinc-100 text-center max-w-md font-mono text-xs">
+            <div className="w-12 h-12 bg-zinc-950 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-6 h-6 text-white" />
             </div>
-            <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Product Cataloged!</h2>
-            <p className="text-slate-500 text-sm mt-2 mb-8 leading-relaxed">
+            <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider mb-2">Product Cataloged!</h2>
+            <p className="text-zinc-550 text-[11px] mb-6 leading-relaxed font-sans">
               Your product has been registered successfully and is now active across your online digital storefront.
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={reset}
-                className="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xs font-bold uppercase tracking-wider text-[10px] cursor-pointer transition-colors"
               >
-                Catalog Another Product
+                Catalog Another
               </button>
               <Link
                 href="/website/products"
-                className="px-5 py-3 border border-slate-200 hover:bg-slate-50 rounded-2xl text-xs font-semibold text-slate-600 transition-all"
+                className="px-4 py-2 border border-zinc-200 hover:bg-zinc-50 rounded-xs font-bold text-zinc-650 uppercase tracking-wider text-[10px] transition-colors"
               >
-                Browse Products
+                Browse Catalog
               </Link>
             </div>
           </div>
@@ -255,65 +247,65 @@ export default function WebsiteAddProduct() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50/50">
+    <div className="flex min-h-screen bg-white">
       <Sidebar />
-      <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
-        <div className="max-w-4xl mx-auto">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 w-full overflow-x-hidden">
+        <div className="max-w-4xl mx-auto pt-12 lg:pt-0">
+          
           {/* Header */}
-          <div className="mb-8 pt-12 lg:pt-0">
-            <Link href="/website/products" className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors uppercase tracking-wider mb-3">
-              <ArrowLeft className="w-3.5 h-3.5" /> <span>Back to Catalog</span>
+          <div className="border-b border-zinc-100 pb-5 mb-6">
+            <Link href="/website/products" className="inline-flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 hover:text-zinc-950 transition-colors uppercase tracking-wider mb-2 font-mono">
+              <ArrowLeft className="w-3 h-3" /> <span>Back to Catalog</span>
             </Link>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-500 tracking-widest text-[10px] font-bold uppercase mb-1">Website Store</p>
-                <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight font-poppins">Add New Product</h1>
-                <p className="text-slate-500 text-sm mt-1">Catalog new products, load digital images, configure pricing, and scale sizing grids.</p>
-              </div>
+            <div>
+              <p className="text-[10px] font-mono font-bold text-zinc-455 uppercase tracking-widest mb-1">Website Store</p>
+              <h1 className="text-base font-bold text-zinc-900 font-sans">Add Product</h1>
+              <p className="text-zinc-500 text-xs mt-1 leading-relaxed">Catalog new products, load digital images, configure pricing, and scale sizing grids.</p>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
             {/* Left Column: Form Details */}
             <div className="lg:col-span-2 space-y-6">
               
               {/* Card 1: Basic Specifications */}
-              <div className="bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-50 pb-3">
-                  <Package className="w-4.5 h-4.5 text-slate-400" /> Basic Specifications
+              <div className="bg-white rounded-sm border border-zinc-100 p-3 sm:p-4 space-y-4">
+                <h3 className="font-bold text-zinc-900 text-[10px] uppercase tracking-wider flex items-center gap-2 border-b border-zinc-50 pb-2.5 font-mono">
+                  <Package className="w-3.5 h-3.5 text-zinc-400" /> Basic Specifications
                 </h3>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Item SKU code *</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-xs">
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Item SKU code *</label>
                     <input
                       type="text"
                       required
                       value={form.sku}
                       onChange={(e) => setForm({ ...form, sku: e.target.value.toUpperCase() })}
                       placeholder="e.g. AW-SNEAK-01"
-                      className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-mono font-bold focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs font-bold text-xs"
                     />
                   </div>
 
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Product Name *</label>
+                  <div className="col-span-1 sm:col-span-2 font-sans">
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1 font-mono">Product Name *</label>
                     <input
                       type="text"
                       required
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
                       placeholder="e.g. Premium Leather Sneakers"
-                      className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs text-xs font-sans"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Main Category *</label>
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Main Category *</label>
                     <select
                       value={form.mainCategory}
                       onChange={(e) => setForm({ ...form, mainCategory: e.target.value, category: "" })}
-                      className="w-full px-3 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none font-bold"
+                      className="w-full px-2 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs font-bold text-xs cursor-pointer"
                       required
                     >
                       {MAIN_CATEGORIES.map((m) => (
@@ -323,11 +315,11 @@ export default function WebsiteAddProduct() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Store Category *</label>
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Store Category *</label>
                     <select
                       value={form.category}
                       onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none font-bold"
+                      className="w-full px-2 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs font-bold text-xs cursor-pointer"
                       required
                     >
                       <option value="">Select Category</option>
@@ -337,12 +329,12 @@ export default function WebsiteAddProduct() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Primary Color</label>
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Primary Color</label>
                     <select
                       value={form.color}
                       onChange={(e) => setForm({ ...form, color: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none"
+                      className="w-full px-2 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs text-xs cursor-pointer"
                     >
                       <option value="">Select Color</option>
                       {COLORS.map((c) => (
@@ -351,74 +343,75 @@ export default function WebsiteAddProduct() {
                     </select>
                   </div>
 
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Catalog Description</label>
+                  <div className="col-span-1 sm:col-span-2 font-sans">
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1 font-mono">Catalog Description *</label>
                     <textarea
                       value={form.description}
+                      required
                       onChange={(e) => setForm({ ...form, description: e.target.value })}
                       rows={3}
                       placeholder="Enter detailed description about fits, material quality, and styles..."
-                      className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none resize-none"
+                      className="w-full px-3 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs text-xs resize-none"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Card 2: Size Grid & Inventory Stock */}
-              <div className="bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-50 pb-3">
-                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                    <Layers className="w-4.5 h-4.5 text-slate-400" /> Size Grid & Inventory Stock
+              <div className="bg-white rounded-sm border border-zinc-100 p-3 sm:p-4 space-y-4">
+                <div className="flex items-center justify-between border-b border-zinc-50 pb-2.5">
+                  <h3 className="font-bold text-zinc-900 text-[10px] uppercase tracking-wider flex items-center gap-2 font-mono">
+                    <Layers className="w-3.5 h-3.5 text-zinc-400" /> Size Grid & Stock
                   </h3>
-                  <span className="text-xs bg-slate-100 font-extrabold text-slate-700 px-3 py-1 rounded-xl shadow-sm border border-slate-200">
-                    {totalStock} Item{totalStock !== 1 ? "s" : ""} Total
+                  <span className="text-[9px] font-mono font-bold bg-zinc-50 text-zinc-800 px-2 py-0.5 border border-zinc-200 rounded-xs">
+                    {totalStock} UNITS TOTAL
                   </span>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-4 text-xs font-mono">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2">Size Display System</label>
-                    <div className="flex flex-wrap gap-4">
-                      <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-2">Size Display System</label>
+                    <div className="flex flex-wrap gap-4 font-sans text-xs text-zinc-700">
+                      <label className="flex items-center gap-2 font-semibold cursor-pointer">
                         <input
                           type="radio"
                           name="sizeDisplayType"
                           checked={form.sizeDisplayType === "alpha"}
                           onChange={() => handleSizeDisplayTypeChange("alpha")}
-                          className="accent-slate-900 cursor-pointer"
+                          className="accent-zinc-955 cursor-pointer"
                         />
-                        Alpha (S, M, L, XL)
+                        Alpha (S, M, L)
                       </label>
-                      <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                      <label className="flex items-center gap-2 font-semibold cursor-pointer">
                         <input
                           type="radio"
                           name="sizeDisplayType"
                           checked={form.sizeDisplayType === "numeric"}
                           onChange={() => handleSizeDisplayTypeChange("numeric")}
-                          className="accent-slate-900 cursor-pointer"
+                          className="accent-zinc-955 cursor-pointer"
                         />
-                        Numeric (28, 30, 32, 34)
+                        Numeric (28, 30, 32)
                       </label>
-                      <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                      <label className="flex items-center gap-2 font-semibold cursor-pointer">
                         <input
                           type="radio"
                           name="sizeDisplayType"
                           checked={form.sizeDisplayType === "free"}
                           onChange={() => handleSizeDisplayTypeChange("free")}
-                          className="accent-slate-900 cursor-pointer"
+                          className="accent-zinc-955 cursor-pointer"
                         />
-                        One Size / Free Size
+                        One Size (OS)
                       </label>
                     </div>
                   </div>
 
                   {form.sizeDisplayType !== "free" && (
                     <>
-                      <p className="text-xs text-slate-400 leading-relaxed">
+                      <p className="text-[10px] text-zinc-400 leading-relaxed font-sans">
                         Select sizes to activate and enter exact stock quantities.
                       </p>
      
-                      <div className="flex flex-wrap gap-2.5">
+                      <div className="flex flex-wrap gap-2">
                         {SIZES.map((s) => {
                           const isActive = form.sizes.includes(s);
                           return (
@@ -426,10 +419,10 @@ export default function WebsiteAddProduct() {
                               key={s}
                               type="button"
                               onClick={() => toggleSize(s)}
-                              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${
+                              className={`w-9 h-9 border text-xs font-bold transition-all flex items-center justify-center rounded-xs cursor-pointer ${
                                 isActive
-                                  ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-100 scale-105"
-                                  : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                                  ? "bg-zinc-950 border-zinc-950 text-white"
+                                  : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-450 hover:bg-zinc-50"
                               }`}
                             >
                               {form.sizeDisplayType === "numeric" ? (SIZE_MAP[s] || s) : s}
@@ -441,7 +434,7 @@ export default function WebsiteAddProduct() {
                   )}
  
                   {form.sizes.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2 sm:gap-2.5 pt-2 animate-fadeIn">
+                    <div className="grid grid-cols-3 gap-2 pt-2 animate-fadeIn">
                       {form.sizes
                         .sort((a, b) => {
                           if (a === "OS") return -1;
@@ -449,8 +442,8 @@ export default function WebsiteAddProduct() {
                           return SIZES.indexOf(a) - SIZES.indexOf(b);
                         })
                         .map((s) => (
-                          <div key={s} className="bg-slate-50/70 border border-slate-100 rounded-2xl p-2.5 text-center">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                          <div key={s} className="bg-zinc-50/50 border border-zinc-100 rounded-xs p-2 text-center">
+                            <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">
                               {s === "OS" ? "One Size (OS)" : (form.sizeDisplayType === "numeric" ? (SIZE_MAP[s] || s) : s)}
                             </label>
                             <input
@@ -464,7 +457,7 @@ export default function WebsiteAddProduct() {
                                   sizeStock: { ...form.sizeStock, [s]: parseInt(e.target.value) || 0 },
                                 })
                               }
-                              className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-xl text-center text-xs font-bold focus:outline-none"
+                              className="w-full px-2 py-1 bg-white border border-zinc-200 rounded-xs text-center text-xs font-bold focus:outline-none focus:border-zinc-950 font-mono"
                               placeholder="0"
                             />
                           </div>
@@ -479,31 +472,31 @@ export default function WebsiteAddProduct() {
             <div className="space-y-6">
               
               {/* Card 3: Pricing Analytics */}
-              <div className="bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-50 pb-3">
-                  <DollarSign className="w-4.5 h-4.5 text-slate-400" /> Pricing & Financials
+              <div className="bg-white rounded-sm border border-zinc-100 p-3 sm:p-4 space-y-4">
+                <h3 className="font-bold text-zinc-900 text-[10px] uppercase tracking-wider flex items-center gap-2 border-b border-zinc-50 pb-2.5 font-mono">
+                  <DollarSign className="w-3.5 h-3.5 text-zinc-400" /> Pricing & Financials
                 </h3>
 
-                <div className="space-y-4">
+                <div className="space-y-4 font-mono text-xs">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Cost Price (₹)</label>
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Cost Price (₹)</label>
                     <div className="relative">
-                      <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                      <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 w-3 h-3" />
                       <input
                         type="number"
                         min="0"
                         value={form.costPrice}
                         onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
                         placeholder="0"
-                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-bold focus:outline-none"
+                        className="w-full pl-8 pr-3 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs font-bold text-xs"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Selling Price (₹) *</label>
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Selling Price (₹) *</label>
                     <div className="relative">
-                      <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                      <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 w-3 h-3" />
                       <input
                         type="number"
                         min="0"
@@ -511,40 +504,40 @@ export default function WebsiteAddProduct() {
                         value={form.sellingPrice}
                         onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
                         placeholder="0"
-                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
+                        className="w-full pl-8 pr-3 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs font-extrabold text-xs"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Listed Price / MRP (₹)</label>
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Listed Price / MRP (₹)</label>
                     <div className="relative">
-                      <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                      <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 w-3 h-3" />
                       <input
                         type="number"
                         min="0"
                         value={form.listedPrice}
                         onChange={(e) => setForm({ ...form, listedPrice: e.target.value })}
                         placeholder="e.g. 2999"
-                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
+                        className="w-full pl-8 pr-3 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs font-extrabold text-xs"
                       />
                     </div>
                   </div>
 
                   {/* Profit Margin Visualization Indicator */}
                   {cp > 0 && sp > 0 && (
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2.5 animate-fadeIn">
-                      <div className="flex justify-between text-xs font-medium">
-                        <span className="text-slate-400">Profit Margin</span>
-                        <span className={`font-extrabold ${profit >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                    <div className="p-3 bg-zinc-50 border border-zinc-150 rounded-xs space-y-2 animate-fadeIn font-mono">
+                      <div className="flex justify-between text-[10px] font-bold">
+                        <span className="text-zinc-400 uppercase">Margin</span>
+                        <span className={`font-bold ${profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                           ₹{profit.toFixed(0)} ({profitPercentage.toFixed(0)}%)
                         </span>
                       </div>
                       
                       {/* Bar indicator */}
-                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="w-full h-1 bg-zinc-200 overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${profit >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
+                          className={`h-full ${profit >= 0 ? "bg-emerald-500" : "bg-red-500"}`}
                           style={{ width: `${Math.min(Math.max(profitPercentage, 0), 100)}%` }}
                         />
                       </div>
@@ -554,39 +547,39 @@ export default function WebsiteAddProduct() {
               </div>
 
               {/* Card 4: Catalog Photos */}
-              <div className="bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-50 pb-3">
-                  <ImageIcon className="w-4.5 h-4.5 text-slate-400" /> Product Photos
+              <div className="bg-white rounded-sm border border-zinc-100 p-3 sm:p-4 space-y-4">
+                <h3 className="font-bold text-zinc-900 text-[10px] uppercase tracking-wider flex items-center gap-2 border-b border-zinc-50 pb-2.5 font-mono">
+                  <ImageIcon className="w-3.5 h-3.5 text-zinc-400" /> Product Photos
                 </h3>
 
-                <div className="space-y-5">
+                <div className="space-y-4 text-xs font-mono">
                   
                   {/* Primary Photo Uploader */}
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2">Primary Cover Photo</label>
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-2">Primary Cover Photo</label>
                     {form.mainImage ? (
-                      <div className="w-full h-36 rounded-2xl overflow-hidden relative group border shadow-sm bg-slate-50">
+                      <div className="w-full h-32 rounded-xs overflow-hidden relative group border border-zinc-200 bg-zinc-50">
                         <img src={form.mainImage} className="w-full h-full object-cover" />
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, mainImage: "" })}
-                          className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-white text-xs font-bold gap-1.5"
+                          className="absolute inset-0 bg-zinc-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-white text-[10px] font-bold gap-1 uppercase tracking-wider font-mono"
                         >
-                          <X className="w-5 h-5" /> Remove Cover
+                          <X className="w-4 h-4" /> Remove Cover
                         </button>
                       </div>
                     ) : (
-                      <label className="h-36 border-2 border-dashed border-slate-200 hover:border-slate-400 hover:bg-slate-50 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all">
+                      <label className="h-32 border border-dashed border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50/50 rounded-xs flex flex-col items-center justify-center cursor-pointer transition-all">
                         {uploadingState.main ? (
                           <>
-                            <RefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
-                            <span className="text-[10px] text-slate-400 mt-2">Uploading Photo...</span>
+                            <RefreshCw className="w-5 h-5 text-zinc-950 animate-spin" />
+                            <span className="text-[9px] text-zinc-400 mt-2">Uploading Photo...</span>
                           </>
                         ) : (
                           <>
-                            <Upload className="w-6 h-6 text-slate-300" />
-                            <span className="text-[10px] text-slate-500 font-bold mt-2">Upload Main Image</span>
-                            <span className="text-[8px] text-slate-400 mt-1">Accepts PNG, JPG, JPEG</span>
+                            <Upload className="w-5 h-5 text-zinc-350" />
+                            <span className="text-[9px] text-zinc-400 font-bold mt-2 uppercase tracking-wider">Upload Cover</span>
+                            <span className="text-[8px] text-zinc-300 mt-1 font-sans">PNG, JPG, JPEG</span>
                           </>
                         )}
                         <input
@@ -602,15 +595,15 @@ export default function WebsiteAddProduct() {
 
                   {/* Secondary Photos */}
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2">Secondary Gallery Images</label>
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-2">Secondary Gallery Images</label>
                     <div className="grid grid-cols-4 gap-2">
                       {form.otherImages.map((img, i) => (
-                        <div key={i} className="w-full aspect-square rounded-xl overflow-hidden relative group border shadow-sm bg-slate-50">
+                        <div key={i} className="w-full aspect-square rounded-xs overflow-hidden relative group border border-zinc-200 bg-zinc-50">
                           <img src={img} className="w-full h-full object-cover" />
                           <button
                             type="button"
                             onClick={() => setForm({ ...form, otherImages: form.otherImages.filter((_, j) => j !== i) })}
-                            className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-white"
+                            className="absolute inset-0 bg-zinc-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-white"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -618,13 +611,13 @@ export default function WebsiteAddProduct() {
                       ))}
                       
                       {form.otherImages.length < 4 && (
-                        <label className="aspect-square border-2 border-dashed border-slate-200 hover:border-slate-400 hover:bg-slate-50 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all">
+                        <label className="aspect-square border border-dashed border-zinc-200 hover:border-zinc-450 hover:bg-slate-50/50 rounded-xs flex flex-col items-center justify-center cursor-pointer transition-all">
                           {uploadingState.secondary ? (
-                            <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />
+                            <RefreshCw className="w-4 h-4 text-zinc-950 animate-spin" />
                           ) : (
                             <>
-                              <Plus className="w-4 h-4 text-slate-300" />
-                              <span className="text-[8px] text-slate-400 mt-1">Add Detail</span>
+                              <Plus className="w-4 h-4 text-zinc-350" />
+                              <span className="text-[8px] text-zinc-400 mt-1 uppercase tracking-wider font-bold">Add Detail</span>
                             </>
                           )}
                           <input
@@ -642,11 +635,11 @@ export default function WebsiteAddProduct() {
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 text-xs font-mono">
                 <button
                   type="button"
                   onClick={reset}
-                  className="px-5 py-3.5 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-2xl text-xs font-semibold transition-colors cursor-pointer"
+                  className="px-4 py-2.5 border border-zinc-200 hover:bg-zinc-50 text-zinc-550 rounded-xs font-bold uppercase tracking-wider text-[10px] transition-colors cursor-pointer"
                 >
                   Reset Form
                 </button>
@@ -654,16 +647,16 @@ export default function WebsiteAddProduct() {
                 <button
                   type="submit"
                   disabled={loading || uploadingState.main || uploadingState.secondary}
-                  className="flex-1 py-3.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white rounded-2xl text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                  className="flex-1 py-2.5 bg-zinc-950 hover:bg-zinc-800 disabled:bg-zinc-200 text-white rounded-xs font-bold uppercase tracking-wider text-[10px] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                       <span>Saving Catalog Entry...</span>
                     </>
                   ) : (
                     <>
-                      <Plus className="w-4 h-4" />
+                      <Plus className="w-3.5 h-3.5" />
                       <span>Register Product</span>
                     </>
                   )}

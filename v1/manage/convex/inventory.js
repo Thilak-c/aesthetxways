@@ -3,188 +3,7 @@ import { v } from "convex/values";
 
 const nowIso = () => new Date().toISOString();
 
-// ============ INVENTORY QUERIES ============
 
-// Get all inventory with product details
-// OPTIMIZED: Added pagination and limit
-export const getAllInventory = query({
-  args: {
-    searchQuery: v.optional(v.string()),
-    stockFilter: v.optional(v.string()), // 'all', 'in_stock', 'low_stock', 'out_of_stock'
-    category: v.optional(v.string()),
-    sortBy: v.optional(v.string()),
-    sortOrder: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const limit = args.limit || 100;
-    
-    // OPTIMIZED: Use take() instead of collect()
-    let products = await ctx.db
-      .query("off_products")
-      .withIndex("by_deleted", (q) => q.eq("isDeleted", false))
-      .take(limit * 2); // Get extra for filtering
-
-    // Apply search filter
-    if (args.searchQuery) {
-      const search = args.searchQuery.toLowerCase();
-      products = products.filter(p => 
-        p.name?.toLowerCase().includes(search) ||
-        p.itemId?.toLowerCase().includes(search) ||
-        p.category?.toLowerCase().includes(search)
-      );
-    }
-
-    // Apply category filter
-    if (args.category && args.category !== 'all') {
-      products = products.filter(p => p.category === args.category);
-    }
-
-    // Apply stock filter
-    if (args.stockFilter && args.stockFilter !== 'all') {
-      products = products.filter(p => {
-        const stock = p.totalStock ?? p.currentStock ?? 0;
-        switch (args.stockFilter) {
-          case 'in_stock': return stock > 10;
-          case 'low_stock': return stock > 0 && stock <= 10;
-          case 'out_of_stock': return stock === 0;
-          default: return true;
-        }
-      });
-    }
-
-    // Sort
-    const sortBy = args.sortBy || 'name';
-    const sortOrder = args.sortOrder || 'asc';
-    products.sort((a, b) => {
-      let aVal, bVal;
-      switch (sortBy) {
-        case 'stock':
-          aVal = a.currentStock ?? a.totalAvailable ?? 0;
-          bVal = b.currentStock ?? b.totalAvailable ?? 0;
-          break;
-        case 'price':
-          aVal = a.price ?? 0;
-          bVal = b.price ?? 0;
-          break;
-        case 'name':
-        default:
-          aVal = a.name?.toLowerCase() ?? '';
-          bVal = b.name?.toLowerCase() ?? '';
-      }
-      if (sortOrder === 'desc') return bVal > aVal ? 1 : -1;
-      return aVal > bVal ? 1 : -1;
-    });
-
-    return products.slice(0, limit).map(p => ({
-      _id: p._id,
-      itemId: p.itemId,
-      name: p.name,
-      category: p.category,
-      price: p.price,
-      costPrice: p.costPrice,
-      mainImage: p.mainImage,
-      // Offline store stock
-      currentStock: p.currentStock ?? p.totalAvailable ?? 0,
-      inStock: p.inStock ?? true,
-      availableSizes: p.availableSizes || [],
-      sizeStock: p.sizeStock || {},
-      // Website store stock
-      websiteStock: p.websiteStock ?? 0,
-      websiteInStock: p.websiteInStock ?? false,
-      websiteSizeStock: p.websiteSizeStock || {},
-      updatedAt: p.updatedAt,
-    }));
-  },
-});
-
-// Get inventory summary stats
-// OPTIMIZED: Added limit to prevent full collection scan
-export const getInventoryStats = query({
-  args: {
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const limit = args.limit || 2000;
-    
-    // OPTIMIZED: Use take() instead of collect()
-    const products = await ctx.db
-      .query("off_products")
-      .filter((q) => q.neq(q.field("isDeleted"), true))
-      .take(limit);
-
-    const stats = {
-      totalProducts: products.length,
-      totalStock: 0,
-      inStock: 0,
-      lowStock: 0,
-      outOfStock: 0,
-      totalValue: 0,
-      categoryBreakdown: {},
-    };
-
-    products.forEach(p => {
-      const stock = p.totalStock ?? p.currentStock ?? 0;
-      stats.totalStock += stock;
-      stats.totalValue += stock * (p.price || 0);
-
-      if (stock === 0) {
-        stats.outOfStock++;
-      } else if (stock <= 10) {
-        stats.lowStock++;
-      } else {
-        stats.inStock++;
-      }
-
-      // Category breakdown
-      const cat = p.category || 'Uncategorized';
-      if (!stats.categoryBreakdown[cat]) {
-        stats.categoryBreakdown[cat] = { count: 0, stock: 0, value: 0 };
-      }
-      stats.categoryBreakdown[cat].count++;
-      stats.categoryBreakdown[cat].stock += stock;
-      stats.categoryBreakdown[cat].value += stock * (p.price || 0);
-    });
-
-    return stats;
-  },
-});
-
-// Get low stock alerts
-// OPTIMIZED: Added limit
-export const getLowStockAlerts = query({
-  args: { 
-    threshold: v.optional(v.number()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const threshold = args.threshold || 10;
-    const limit = args.limit || 50;
-    
-    // OPTIMIZED: Use take() instead of collect()
-    const products = await ctx.db
-      .query("off_products")
-      .filter((q) => q.neq(q.field("isDeleted"), true))
-      .take(500);
-
-    return products
-      .filter(p => {
-        const stock = p.totalStock ?? p.currentStock ?? 0;
-        return stock <= threshold;
-      })
-      .map(p => ({
-        _id: p._id,
-        itemId: p.itemId,
-        name: p.name,
-        category: p.category,
-        currentStock: p.totalStock ?? p.currentStock ?? 0,
-        price: p.price,
-        mainImage: p.mainImage,
-      }))
-      .sort((a, b) => a.currentStock - b.currentStock)
-      .slice(0, limit);
-  },
-});
 
 // Get inventory history/movements
 export const getInventoryMovements = query({
@@ -532,7 +351,7 @@ export const createWebsitePOSBill = mutation({
       productName: v.string(),
       productImage: v.optional(v.string()),
       itemId: v.string(),
-      size: v.string(),
+      size: v.optional(v.string()),
       price: v.float64(),
       quantity: v.number(),
       sizeDisplayType: v.optional(v.string()),
@@ -542,9 +361,14 @@ export const createWebsitePOSBill = mutation({
     subtotal: v.float64(),
     discount: v.optional(v.number()),
     discountAmount: v.optional(v.float64()),
+    discountType: v.optional(v.string()),
     tax: v.float64(),
     total: v.float64(),
     paymentMethod: v.string(),
+    splitDetails: v.optional(v.object({
+      cash: v.float64(),
+      online: v.float64(),
+    })),
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
@@ -615,9 +439,11 @@ export const createWebsitePOSBill = mutation({
       subtotal: args.subtotal,
       discount: args.discount || 0,
       discountAmount: args.discountAmount || 0,
+      discountType: args.discountType || (args.discountAmount > 0 ? "percentage" : undefined),
       tax: args.tax,
       total: args.total,
       paymentMethod: args.paymentMethod,
+      splitDetails: args.splitDetails,
       createdAt: nowIso(),
       createdBy: args.createdBy,
     });
@@ -657,122 +483,7 @@ export const getBillByNumber = query({
 });
 
 
-// ============ TRASH FUNCTIONS ============
 
-// Move product to trash (for offline store using products table)
-export const moveToTrash = mutation({
-  args: { productId: v.id("products") },
-  handler: async (ctx, { productId }) => {
-    const product = await ctx.db.get(productId);
-    if (!product) throw new Error("Product not found");
-
-    // Save to offline trash
-    await ctx.db.insert("off_trash", {
-      originalId: productId,
-      itemId: product.itemId,
-      name: product.name,
-      productData: product,
-      deletedAt: nowIso(),
-      deletedBy: "admin",
-    });
-
-    // Delete from products
-    await ctx.db.delete(productId);
-
-    return { success: true };
-  },
-});
-
-// Restore product from trash (for offline store)
-export const restoreFromTrash = mutation({
-  args: { trashId: v.id("off_trash") },
-  handler: async (ctx, { trashId }) => {
-    const trashItem = await ctx.db.get(trashId);
-    if (!trashItem) throw new Error("Trash item not found");
-
-    // Check if itemId already exists
-    const existing = await ctx.db
-      .query("products")
-      .filter((q) => q.eq(q.field("itemId"), trashItem.itemId))
-      .first();
-    if (existing) throw new Error("Product with this SKU already exists");
-
-    // Restore product
-    const { _id, _creationTime, isDeleted, ...productData } = trashItem.productData;
-    await ctx.db.insert("products", {
-      ...productData,
-      isDeleted: false,
-      updatedAt: nowIso(),
-    });
-
-    // Remove from trash
-    await ctx.db.delete(trashId);
-
-    return { success: true };
-  },
-});
-
-// Get all trash items (for offline store)
-// OPTIMIZED: Added limit
-export const getTrash = query({
-  args: {
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    return await ctx.db.query("off_trash").order("desc").take(args.limit || 100);
-  },
-});
-
-// Get dead stock (products with zero sales) - for offline store
-// OPTIMIZED: Added limit
-export const getDeadStock = query({
-  args: {
-    daysOld: v.optional(v.number()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const daysOld = args.daysOld || 30;
-    const limit = args.limit || 50;
-    
-    // OPTIMIZED: Use take() instead of collect()
-    const products = await ctx.db
-      .query("off_products")
-      .filter((q) => q.neq(q.field("isDeleted"), true))
-      .take(500);
-
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-    return products
-      .filter(p => {
-        // No sales (buys = 0 or undefined)
-        const hasSales = (p.buys || 0) > 0;
-        if (hasSales) return false;
-
-        // Check if product is old enough
-        if (p.createdAt) {
-          const createdDate = new Date(p.createdAt);
-          return createdDate < cutoffDate;
-        }
-        return true; // Include if no createdAt
-      })
-      .map(p => ({
-        _id: p._id,
-        itemId: p.itemId,
-        name: p.name,
-        category: p.category,
-        price: p.price,
-        costPrice: p.costPrice || 0,
-        totalStock: p.totalStock ?? p.currentStock ?? 0,
-        mainImage: p.mainImage,
-        createdAt: p.createdAt,
-        buys: p.buys || 0,
-        stockValue: (p.costPrice || p.price || 0) * (p.totalStock ?? p.currentStock ?? 0),
-      }))
-      .sort((a, b) => b.stockValue - a.stockValue)
-      .slice(0, limit);
-  },
-});
 
 // Get website products optimized for POS billing
 export const getWebsiteProductsForBilling = query({

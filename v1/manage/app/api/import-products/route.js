@@ -40,47 +40,27 @@ export async function POST(request) {
         
         const currentStock = Object.values(sizeStock).reduce((sum, qty) => sum + (Number(qty) || 0), 0);
 
-        if (store === "website") {
-          // Import to products table (website store)
-          await convex.mutation(api.products.insert, {
-            itemId: product.itemId,
-            name: product.name,
-            category: product.category || "Uncategorized",
-            description: product.description || "",
-            mainImage: product.mainImage || "",
-            otherImages: product.otherImages || [],
-            price: Number(product.price),
-            costPrice: Number(product.costPrice) || 0,
-            listedPrice: product.listedPrice ? Number(product.listedPrice) : undefined,
-            color: product.color || "",
-            secondaryColor: product.secondaryColor || "",
-            availableSizes: availableSizes,
-            sizeStock: sizeStock,
-            currentStock: currentStock,
-            totalAvailable: currentStock,
-            inStock: currentStock > 0,
-            isDeleted: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        } else {
-          // Import to off_products table (offline store)
-          await convex.mutation(api.offStore.addProduct, {
-            itemId: product.itemId,
-            name: product.name,
-            category: product.category || "Uncategorized",
-            description: product.description || "",
-            mainImage: product.mainImage || "",
-            otherImages: product.otherImages || [],
-            price: Number(product.price),
-            costPrice: Number(product.costPrice) || 0,
-            listedPrice: product.listedPrice ? Number(product.listedPrice) : undefined,
-            color: product.color || "",
-            secondaryColor: product.secondaryColor || "",
-            availableSizes: availableSizes,
-            sizeStock: sizeStock,
-          });
-        }
+        // Import to products table (website store)
+        await convex.mutation(api.products.insert, {
+          itemId: product.itemId,
+          name: product.name,
+          category: product.category || "Uncategorized",
+          description: product.description || "",
+          mainImage: product.mainImage || "",
+          otherImages: product.otherImages || [],
+          price: Number(product.price),
+          costPrice: Number(product.costPrice) || 0,
+          color: product.color || "",
+          secondaryColor: product.secondaryColor || "",
+          availableSizes: availableSizes,
+          sizeStock: sizeStock,
+          currentStock: currentStock,
+          totalAvailable: currentStock,
+          inStock: currentStock > 0,
+          isDeleted: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
         success++;
       } catch (err) {
         errors.push(`Failed to import ${product.itemId || product.name}: ${err.message}`);

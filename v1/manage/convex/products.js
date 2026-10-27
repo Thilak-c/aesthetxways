@@ -154,7 +154,7 @@ export const getProductByItemId = query({
     const product = await ctx.db
       .query("products")
       .withIndex("by_itemId", (q) => q.eq("itemId", itemId))
-      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .filter((q) => q.and(q.neq(q.field("isDeleted"), true), q.neq(q.field("isHidden"), true)))
       .first();
     
     return product || null;
@@ -2271,7 +2271,28 @@ export const getProductsForWebsiteList = query({
       currentStock: p.currentStock || p.totalAvailable || 0,
       totalAvailable: p.totalAvailable || p.currentStock || 0,
       sizeDisplayType: p.sizeDisplayType || "alpha",
+      isTopSeller: p.isTopSeller,
+      isHidden: p.isHidden || false,
     }));
+  },
+});
+
+// Toggle product visibility (hide / unhide) on the website
+export const toggleHideProduct = mutation({
+  args: {
+    productId: v.id("products"),
+  },
+  handler: async (ctx, { productId }) => {
+    const product = await ctx.db.get(productId);
+    if (!product) throw new Error("Product not found");
+
+    const newHiddenState = !product.isHidden;
+    await ctx.db.patch(productId, {
+      isHidden: newHiddenState,
+      updatedAt: nowIso(),
+    });
+
+    return { success: true, isHidden: newHiddenState };
   },
 });
 
@@ -2611,6 +2632,7 @@ export const addProduct = mutation({
     availableSizes: v.array(v.string()),
     sizeStock: v.any(),
     sizeDisplayType: v.optional(v.string()),
+    isTopSeller: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     // Check duplicate
@@ -2644,6 +2666,7 @@ export const addProduct = mutation({
       isDeleted: false,
       buys: 0,
       inCart: 0,
+      isTopSeller: args.isTopSeller,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -2685,6 +2708,7 @@ export const updateProductFull = mutation({
     availableSizes: v.array(v.string()),
     sizeStock: v.any(),
     sizeDisplayType: v.optional(v.string()),
+    isTopSeller: v.optional(v.boolean()),
   },
   handler: async (ctx, { id, ...args }) => {
     const product = await ctx.db.get(id);
@@ -2711,6 +2735,7 @@ export const updateProductFull = mutation({
       currentStock: totalStock,
       totalAvailable: totalStock,
       inStock: totalStock > 0,
+      isTopSeller: args.isTopSeller,
       updatedAt: new Date().toISOString(),
     });
 
@@ -3225,7 +3250,7 @@ export const getProductsForShop = query({
   },
 });
 
-// Migration function to set mainCategory to footwear for all products and off_products
+// Migration function to set mainCategory to footwear for all products
 export const migrateMainCategoryToFootwear = mutation({
   args: {},
   handler: async (ctx) => {
@@ -3240,22 +3265,10 @@ export const migrateMainCategoryToFootwear = mutation({
       }
     }
 
-    const offProducts = await ctx.db.query("off_products").collect();
-    let offMigratedCount = 0;
-    for (const product of offProducts) {
-      if (!product.mainCategory) {
-        await ctx.db.patch(product._id, {
-          mainCategory: "footwear"
-        });
-        offMigratedCount++;
-      }
-    }
-
     return {
       success: true,
       webMigratedCount,
-      offMigratedCount,
-      message: `Migrated ${webMigratedCount} online products and ${offMigratedCount} offline products to footwear`
+      message: `Migrated ${webMigratedCount} online products to footwear`
     };
   },
 });

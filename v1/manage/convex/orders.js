@@ -122,6 +122,37 @@ export const createOrder = mutation({
         updatedAt: orderTimestamp,
       });
 
+      // Format full payment shipping address safely
+      const streetAddress = args.shippingDetails.address || "";
+      const cityLoc = args.shippingDetails.city || "";
+      const stateLoc = args.shippingDetails.state || "";
+      const pinCode = args.shippingDetails.pincode || "";
+      const formattedAddress = [streetAddress, cityLoc, stateLoc, pinCode].filter(Boolean).join(", ");
+
+      // Create the payment record in the payments table
+      await ctx.db.insert("payments", {
+        orderId,
+        orderNumber,
+        customerName: args.shippingDetails.fullName,
+        customerEmail: args.shippingDetails.email,
+        customerPhone: args.shippingDetails.phone,
+        amount: args.orderTotal,
+        currency: args.paymentDetails.currency || "INR",
+        paymentMethod: enhancedPaymentDetails.paymentMethod,
+        paymentStatus: args.paymentDetails.status || "completed",
+        razorpayOrderId: args.paymentDetails.razorpayOrderId,
+        razorpayPaymentId: args.paymentDetails.razorpayPaymentId,
+        paymentAddress: formattedAddress,
+        products: args.items.map(item => ({
+          productId: item.productId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          size: item.size,
+        })),
+        createdAt: nowIso(),
+      });
+
       // Admin notification is now sent from the frontend checkout page
       // This avoids Convex action/mutation limitations
 
@@ -685,4 +716,117 @@ export const trackOrder = query({
 
     return null;
   },
+});
+
+// Fetch all payment transactions
+export const getAllPayments = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("payments")
+      .order("desc")
+      .take(args.limit || 100);
+  },
+});
+
+// Seed mock orders with specific creation hours for the trend graph
+export const seedMockOrders = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Clean up existing mock orders to prevent duplication
+    const existing = await ctx.db.query("orders").collect();
+    const mockOrders = existing.filter(o => o.userId === "mock-user");
+    for (const mo of mockOrders) {
+      await ctx.db.delete(mo._id);
+    }
+
+    const today = new Date();
+    
+    // Hour 1 (1 AM): 2 orders
+    const times1 = [
+      new Date(today).setHours(1, 10, 0, 0),
+      new Date(today).setHours(1, 40, 0, 0)
+    ];
+
+    // Hour 13 (1 PM): 10 orders
+    const times13 = Array.from({ length: 10 }, (_, i) => 
+      new Date(today).setHours(13, i * 5, 0, 0)
+    );
+
+    // Hour 14 (2 PM): 1 order
+    const times14 = [
+      new Date(today).setHours(14, 25, 0, 0)
+    ];
+
+    // Hour 15 (3 PM): 4 orders
+    const times15 = Array.from({ length: 4 }, (_, i) => 
+      new Date(today).setHours(15, i * 12, 0, 0)
+    );
+
+    const allTimes = [...times1, ...times13, ...times14, ...times15];
+
+    let orderCount = 0;
+    for (const timestamp of allTimes) {
+      orderCount++;
+      const randomSuffix = Math.random().toString(36).substr(2, 5).toUpperCase();
+      const orderNumber = `ORD-MOCK-${timestamp}-${randomSuffix}`;
+      
+      const city = ["Delhi", "Mumbai", "Bangalore", "Patna", "Pune"][orderCount % 5];
+
+      await ctx.db.insert("orders", {
+        userId: "mock-user",
+        orderNumber,
+        items: [
+          {
+            productId: "prod-mock",
+            name: "Minimalist Linen Shirt",
+            price: 2400,
+            image: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=100",
+            quantity: 1,
+            size: "L"
+          }
+        ],
+        shippingDetails: {
+          fullName: `Test Buyer ${orderCount}`,
+          email: `buyer${orderCount}@example.com`,
+          phone: "9999999999",
+          flatNo: "12A",
+          area: "Sector 4",
+          landmark: "Metro Station",
+          address: "456 Test Lane",
+          city,
+          state: "Delhi",
+          pincode: "110001",
+          country: "India"
+        },
+        paymentDetails: {
+          amount: 2400,
+          currency: "INR",
+          status: "completed",
+          paidAt: timestamp,
+          paymentMethod: "prepaid"
+        },
+        orderTotal: 2400,
+        status: "confirmed",
+        estimatedDeliveryDate: timestamp + 86400000 * 3,
+        deliveryDetails: [
+          {
+            status: "order_placed",
+            message: "Order has been placed successfully",
+            timestamp: timestamp,
+            updatedBy: "system"
+          }
+        ],
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+    }
+
+    return {
+      success: true,
+      message: `Seeded ${allTimes.length} mock orders at specific hours into the database.`
+    };
+  }
 });

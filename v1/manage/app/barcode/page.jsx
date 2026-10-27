@@ -9,8 +9,8 @@ import Barcode, { BarcodeInput } from "@/components/Barcode";
 export default function BarcodePage() {
   const [scan, setScan] = useState("");
   const [selected, setSelected] = useState([]);
-  const product = useQuery(api.offStore.getProductByItemId, scan ? { itemId: scan } : "skip") || null;
-  const all = useQuery(api.offStore.getProductsForBarcode) || [];
+  const product = useQuery(api.products.getProductByItemId, scan ? { itemId: scan } : "skip") || null;
+  const all = useQuery(api.products.getAll, { limit: 1000 }) || [];
 
   const onScan = (code) => {
     setScan(code);

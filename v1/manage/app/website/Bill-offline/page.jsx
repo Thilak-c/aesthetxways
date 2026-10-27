@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
@@ -55,8 +56,11 @@ const SIZE_MAP = {
 };
 
 export default function BillingPage() {
-    // POS Layout & Search States
-    const [searchQuery, setSearchQuery] = useState("");
+    const router = useRouter();
+    useEffect(() => {
+        router.replace("/website/billing");
+    }, [router]);
+    return null;
     const [viewMode, setViewMode] = useState("grid"); // "grid" or "table"
     const [cart, setCart] = useState([]); 
     const [customerInfo, setCustomerInfo] = useState({ name: "", phone: "" });
@@ -396,14 +400,12 @@ export default function BillingPage() {
         }
         
         if (existing) {
-            toast.success(`Updated ${selectedProduct.name} (Size ${size})`);
             setCart(prev => prev.map(item =>
                 item._id === selectedProduct._id && item.size === size
                     ? { ...item, quantity: item.quantity + 1 }
                     : item
             ));
         } else {
-            toast.success(`Added ${selectedProduct.name} (Size ${size})`);
             setCart(prev => [...prev, { ...selectedProduct, size, quantity: 1 }]);
         }
         
@@ -438,7 +440,6 @@ export default function BillingPage() {
 
     const removeFromCart = (productId, size) => {
         setCart(prev => prev.filter(item => !(item._id === productId && item.size === size)));
-        toast.success("Removed from invoice cart");
     };
 
     // Calculate totals (GST inclusive)
@@ -1554,6 +1555,23 @@ Aesthetxways.com`;
                     {/* Payment Method */}
                     <div style={{ marginTop: '8px', padding: '6px', backgroundColor: '#fafafa', border: '1px solid #eee', borderRadius: '4px', textAlign: 'center', fontSize: '9px', fontFamily: 'monospace', color: '#555', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
                         Paid via: {paymentMethod.toUpperCase()}
+                    </div>
+
+                    {/* Dynamic UPI QR Code Section */}
+                    <div style={{ marginTop: '10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 4px 0', fontFamily: 'monospace' }}>SCAN TO PAY VIA UPI</p>
+                        <div style={{ position: 'relative', display: 'inline-block', background: '#fff' }}>
+                            <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&ecc=H&data=${encodeURIComponent(`upi://pay?pa=8008439762@ptsbi&pn=Aesthetx%20Ways&am=${Number(total || 0).toFixed(2)}&cu=INR`)}`} 
+                                alt="UPI QR" 
+                                style={{ width: '100px', height: '100px', display: 'block', margin: '0 auto' }} 
+                            />
+                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '26px', height: '26px', background: '#fff', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3px', boxSizing: 'border-box' }}>
+                                <img src="/logo_t.svg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', margin: 0 }} />
+                            </div>
+                        </div>
+                        <p style={{ fontSize: '11px', fontWeight: 900, fontFamily: 'monospace', margin: '3px 0 0 0' }}>₹{Number(total || 0).toFixed(0)}</p>
+                        <p style={{ fontSize: '8px', fontWeight: 700, color: '#444', fontFamily: 'monospace', margin: '1px 0 0 0' }}>UPI ID: 8008439762@ptsbi</p>
                     </div>
 
                     {/* Footer */}
