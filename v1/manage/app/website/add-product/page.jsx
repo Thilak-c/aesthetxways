@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
 import {
@@ -22,7 +22,6 @@ import Link from "next/link";
 import { processImageForUpload } from "@/lib/imageHelper";
 
 const SIZES = ["S", "M", "L", "XL", "XXL", "XXXL"];
-const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi", "Orange", "Purple", "Silver", "Golden", "Rose Gold", "Copper"];
 const SIZE_MAP = {
   S: "28",
   M: "30",
@@ -32,24 +31,45 @@ const SIZE_MAP = {
   XXXL: "38"
 };
 
-const MAIN_CATEGORIES = [
+const DEFAULT_MAIN_CATEGORIES = [
   { value: "footwear", label: "Footwear" },
   { value: "apparel", label: "Apparel / Clothing" },
   { value: "headwear", label: "Headwear" },
   { value: "eyewear", label: "Eyewear" }
 ];
 
-const CATEGORY_MAP = {
+const DEFAULT_CATEGORY_MAP = {
   footwear: ["Shoes", "boots", "sandals", "sneakers"],
   apparel: ["Shirts", "t-shirts", "Waffle T-shirt", "jackets", "pants", "jeans", "dresses", "socks", "jersey", "jerseys"],
   headwear: ["Hats", "caps", "beanies"],
   eyewear: ["Glasses", "sunglasses"]
 };
 
+const DEFAULT_COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi", "Orange", "Purple", "Silver", "Golden", "Rose Gold", "Copper"];
+
 export default function WebsiteAddProduct() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [uploadingState, setUploadingState] = useState({ main: false, secondary: false });
+
+  // Dynamic catalog taxonomy from database
+  const catalogConfig = useQuery(api.siteSettings.getCatalogConfig);
+  const addStoreCategoryMut = useMutation(api.siteSettings.addStoreCategory);
+  const removeStoreCategoryMut = useMutation(api.siteSettings.removeStoreCategory);
+  const addMainCategoryMut = useMutation(api.siteSettings.addMainCategory);
+  const removeMainCategoryMut = useMutation(api.siteSettings.removeMainCategory);
+  const addColorMut = useMutation(api.siteSettings.addColor);
+  const removeColorMut = useMutation(api.siteSettings.removeColor);
+
+  const mainCategories = catalogConfig?.mainCategories || DEFAULT_MAIN_CATEGORIES;
+  const categoryMap = catalogConfig?.categoryMap || DEFAULT_CATEGORY_MAP;
+  const colors = catalogConfig?.colors || DEFAULT_COLORS;
+
+  const [manageModal, setManageModal] = useState(null); // 'storeCategory' | 'mainCategory' | 'color'
+  const [newItemInput, setNewItemInput] = useState("");
+  const [newMainCategoryLabel, setNewMainCategoryLabel] = useState("");
+  const [submittingManage, setSubmittingManage] = useState(false);
+
   const [form, setForm] = useState({
     sku: "",
     name: "",
@@ -69,6 +89,94 @@ export default function WebsiteAddProduct() {
   });
 
   const addProduct = useMutation(api.products.addProduct);
+
+  const handleAddStoreCategory = async (e) => {
+    e?.preventDefault();
+    const val = newItemInput.trim();
+    if (!val) return toast.error("Category name is required");
+    setSubmittingManage(true);
+    try {
+      await addStoreCategoryMut({ mainCategory: form.mainCategory, category: val });
+      setForm((prev) => ({ ...prev, category: val }));
+      setNewItemInput("");
+      toast.success(`Category "${val}" saved to database`);
+    } catch (err) {
+      toast.error(err.message || "Failed to add category");
+    } finally {
+      setSubmittingManage(false);
+    }
+  };
+
+  const handleRemoveStoreCategory = async (cat) => {
+    try {
+      await removeStoreCategoryMut({ mainCategory: form.mainCategory, category: cat });
+      if (form.category === cat) {
+        setForm((prev) => ({ ...prev, category: "" }));
+      }
+      toast.success(`Category "${cat}" removed`);
+    } catch (err) {
+      toast.error(err.message || "Failed to remove category");
+    }
+  };
+
+  const handleAddMainCategory = async (e) => {
+    e?.preventDefault();
+    const label = newMainCategoryLabel.trim();
+    if (!label) return toast.error("Main category name is required");
+    const value = label.toLowerCase().replace(/[^a-z0-9_-]/g, "-").replace(/-+/g, "-");
+    setSubmittingManage(true);
+    try {
+      await addMainCategoryMut({ value, label });
+      setForm((prev) => ({ ...prev, mainCategory: value, category: "" }));
+      setNewMainCategoryLabel("");
+      toast.success(`Main category "${label}" saved to database`);
+    } catch (err) {
+      toast.error(err.message || "Failed to add main category");
+    } finally {
+      setSubmittingManage(false);
+    }
+  };
+
+  const handleRemoveMainCategory = async (val) => {
+    try {
+      await removeMainCategoryMut({ value: val });
+      if (form.mainCategory === val) {
+        setForm((prev) => ({ ...prev, mainCategory: mainCategories[0]?.value || "apparel", category: "" }));
+      }
+      toast.success("Main category removed");
+    } catch (err) {
+      toast.error(err.message || "Failed to remove main category");
+    }
+  };
+
+  const handleAddColor = async (e) => {
+    e?.preventDefault();
+    const val = newItemInput.trim();
+    if (!val) return toast.error("Color name is required");
+    setSubmittingManage(true);
+    try {
+      await addColorMut({ color: val });
+      setForm((prev) => ({ ...prev, color: val }));
+      setNewItemInput("");
+      toast.success(`Color "${val}" saved to database`);
+    } catch (err) {
+      toast.error(err.message || "Failed to add color");
+    } finally {
+      setSubmittingManage(false);
+    }
+  };
+
+  const handleRemoveColor = async (clr) => {
+    try {
+      await removeColorMut({ color: clr });
+      if (form.color === clr) {
+        setForm((prev) => ({ ...prev, color: "" }));
+      }
+      toast.success(`Color "${clr}" removed`);
+    } catch (err) {
+      toast.error(err.message || "Failed to remove color");
+    }
+  };
 
   const toggleSize = (size) => {
     const has = form.sizes.includes(size);
@@ -301,45 +409,99 @@ export default function WebsiteAddProduct() {
                   </div>
 
                   <div>
-                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Main Category *</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[9px] font-bold text-zinc-400 uppercase">Main Category *</label>
+                      <button
+                        type="button"
+                        onClick={() => { setManageModal("mainCategory"); setNewMainCategoryLabel(""); }}
+                        className="text-[9px] text-zinc-500 hover:text-zinc-950 font-bold font-mono flex items-center gap-0.5 transition-colors cursor-pointer"
+                        title="Add or remove main categories"
+                      >
+                        <Plus className="w-2.5 h-2.5" /> Manage
+                      </button>
+                    </div>
                     <select
                       value={form.mainCategory}
-                      onChange={(e) => setForm({ ...form, mainCategory: e.target.value, category: "" })}
+                      onChange={(e) => {
+                        if (e.target.value === "__ADD_NEW__") {
+                          setManageModal("mainCategory");
+                          setNewMainCategoryLabel("");
+                          return;
+                        }
+                        setForm({ ...form, mainCategory: e.target.value, category: "" });
+                      }}
                       className="w-full px-2 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs font-bold text-xs cursor-pointer"
                       required
                     >
-                      {MAIN_CATEGORIES.map((m) => (
+                      {mainCategories.map((m) => (
                         <option key={m.value} value={m.value}>{m.label}</option>
                       ))}
+                      <option value="__ADD_NEW__" className="text-zinc-400 font-normal">+ Add Main Category...</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Store Category *</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[9px] font-bold text-zinc-400 uppercase">Store Category *</label>
+                      <button
+                        type="button"
+                        onClick={() => { setManageModal("storeCategory"); setNewItemInput(""); }}
+                        className="text-[9px] text-zinc-500 hover:text-zinc-950 font-bold font-mono flex items-center gap-0.5 transition-colors cursor-pointer"
+                        title="Add or remove store categories"
+                      >
+                        <Plus className="w-2.5 h-2.5" /> Manage
+                      </button>
+                    </div>
                     <select
                       value={form.category}
-                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                      onChange={(e) => {
+                        if (e.target.value === "__ADD_NEW__") {
+                          setManageModal("storeCategory");
+                          setNewItemInput("");
+                          return;
+                        }
+                        setForm({ ...form, category: e.target.value });
+                      }}
                       className="w-full px-2 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs font-bold text-xs cursor-pointer"
                       required
                     >
                       <option value="">Select Category</option>
-                      {(CATEGORY_MAP[form.mainCategory] || []).map((c) => (
+                      {(categoryMap[form.mainCategory] || []).map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
+                      <option value="__ADD_NEW__" className="text-zinc-400 font-normal">+ Add Store Category...</option>
                     </select>
                   </div>
 
                   <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[9px] font-bold text-zinc-400 uppercase block mb-1">Primary Color</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[9px] font-bold text-zinc-400 uppercase">Primary Color</label>
+                      <button
+                        type="button"
+                        onClick={() => { setManageModal("color"); setNewItemInput(""); }}
+                        className="text-[9px] text-zinc-500 hover:text-zinc-950 font-bold font-mono flex items-center gap-0.5 transition-colors cursor-pointer"
+                        title="Add or remove colors"
+                      >
+                        <Plus className="w-2.5 h-2.5" /> Manage
+                      </button>
+                    </div>
                     <select
                       value={form.color}
-                      onChange={(e) => setForm({ ...form, color: e.target.value })}
+                      onChange={(e) => {
+                        if (e.target.value === "__ADD_NEW__") {
+                          setManageModal("color");
+                          setNewItemInput("");
+                          return;
+                        }
+                        setForm({ ...form, color: e.target.value });
+                      }}
                       className="w-full px-2 py-1.5 bg-white border border-zinc-200 focus:border-zinc-950 focus:outline-none rounded-xs text-xs cursor-pointer"
                     >
                       <option value="">Select Color</option>
-                      {COLORS.map((c) => (
+                      {colors.map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
+                      <option value="__ADD_NEW__" className="text-zinc-400 font-normal">+ Add Color...</option>
                     </select>
                   </div>
 
@@ -667,6 +829,193 @@ export default function WebsiteAddProduct() {
           </form>
         </div>
       </main>
+
+      {/* Database Taxonomy Manager Modal */}
+      {manageModal && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-zinc-200 rounded-sm shadow-xl max-w-md w-full p-5 space-y-4 font-mono animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div>
+                <p className="text-[9px] uppercase font-bold text-zinc-400">Database Taxonomy</p>
+                <h3 className="text-sm font-bold text-zinc-900 font-sans">
+                  {manageModal === "storeCategory" && `Manage Store Categories (${mainCategories.find((m) => m.value === form.mainCategory)?.label || form.mainCategory})`}
+                  {manageModal === "mainCategory" && "Manage Main Categories"}
+                  {manageModal === "color" && "Manage Colors"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setManageModal(null);
+                  setNewItemInput("");
+                  setNewMainCategoryLabel("");
+                }}
+                className="p-1 hover:bg-zinc-100 rounded text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Store Category Manager */}
+            {manageModal === "storeCategory" && (
+              <>
+                <form onSubmit={handleAddStoreCategory} className="flex gap-2">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={newItemInput}
+                    onChange={(e) => setNewItemInput(e.target.value)}
+                    placeholder="New category (e.g. Hoodies, Oversized Tee...)"
+                    className="flex-1 px-3 py-1.5 border border-zinc-200 rounded-xs text-xs focus:border-zinc-950 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={submittingManage || !newItemInput.trim()}
+                    className="px-3 py-1.5 bg-zinc-950 text-white text-xs font-bold rounded-xs hover:bg-zinc-800 disabled:opacity-50 transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </button>
+                </form>
+
+                <div className="space-y-1.5">
+                  <p className="text-[9px] font-bold uppercase text-zinc-400">Current Categories (Click × to remove)</p>
+                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-2 bg-zinc-50 border border-zinc-150 rounded-xs">
+                    {(categoryMap[form.mainCategory] || []).length === 0 ? (
+                      <p className="text-xs text-zinc-400 italic">No categories saved yet for this main category.</p>
+                    ) : (
+                      (categoryMap[form.mainCategory] || []).map((cat) => (
+                        <span
+                          key={cat}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-zinc-200 rounded-xs text-xs font-medium text-zinc-800"
+                        >
+                          <span>{cat}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveStoreCategory(cat)}
+                            className="text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
+                            title={`Delete ${cat}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Main Category Manager */}
+            {manageModal === "mainCategory" && (
+              <>
+                <form onSubmit={handleAddMainCategory} className="flex gap-2">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={newMainCategoryLabel}
+                    onChange={(e) => setNewMainCategoryLabel(e.target.value)}
+                    placeholder="New main category (e.g. Accessories)"
+                    className="flex-1 px-3 py-1.5 border border-zinc-200 rounded-xs text-xs focus:border-zinc-950 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={submittingManage || !newMainCategoryLabel.trim()}
+                    className="px-3 py-1.5 bg-zinc-950 text-white text-xs font-bold rounded-xs hover:bg-zinc-800 disabled:opacity-50 transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </button>
+                </form>
+
+                <div className="space-y-1.5">
+                  <p className="text-[9px] font-bold uppercase text-zinc-400">Current Main Categories</p>
+                  <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto p-1.5 bg-zinc-50 border border-zinc-150 rounded-xs">
+                    {mainCategories.map((m) => (
+                      <div
+                        key={m.value}
+                        className="flex items-center justify-between px-2.5 py-1.5 bg-white border border-zinc-200 rounded-xs text-xs text-zinc-800"
+                      >
+                        <div>
+                          <span className="font-bold">{m.label}</span>
+                          <span className="text-[10px] text-zinc-400 ml-2 font-mono">({m.value})</span>
+                        </div>
+                        {mainCategories.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMainCategory(m.value)}
+                            className="text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
+                            title={`Delete ${m.label}`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Color Manager */}
+            {manageModal === "color" && (
+              <>
+                <form onSubmit={handleAddColor} className="flex gap-2">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={newItemInput}
+                    onChange={(e) => setNewItemInput(e.target.value)}
+                    placeholder="New color (e.g. Olive, Lavender...)"
+                    className="flex-1 px-3 py-1.5 border border-zinc-200 rounded-xs text-xs focus:border-zinc-950 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={submittingManage || !newItemInput.trim()}
+                    className="px-3 py-1.5 bg-zinc-950 text-white text-xs font-bold rounded-xs hover:bg-zinc-800 disabled:opacity-50 transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </button>
+                </form>
+
+                <div className="space-y-1.5">
+                  <p className="text-[9px] font-bold uppercase text-zinc-400">Current Colors (Click × to remove)</p>
+                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-2 bg-zinc-50 border border-zinc-150 rounded-xs">
+                    {colors.map((clr) => (
+                      <span
+                        key={clr}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-zinc-200 rounded-xs text-xs font-medium text-zinc-800"
+                      >
+                        <span>{clr}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveColor(clr)}
+                          className="text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
+                          title={`Delete ${clr}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="pt-2 border-t border-zinc-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setManageModal(null);
+                  setNewItemInput("");
+                  setNewMainCategoryLabel("");
+                }}
+                className="px-4 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-bold rounded-xs transition-colors cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

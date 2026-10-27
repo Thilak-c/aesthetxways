@@ -36,17 +36,9 @@ const SIZE_MAP = {
   XXL: "36",
   XXXL: "38"
 };
-const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi", "Orange", "Purple", "Silver", "Golden", "Rose Gold", "Copper"];
+const DEFAULT_COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi", "Orange", "Purple", "Silver", "Golden", "Rose Gold", "Copper"];
 
-const MAIN_CATEGORIES = [
-  { value: "all", label: "ALL CATEGORIES" },
-  { value: "footwear", label: "FOOTWEAR" },
-  { value: "apparel", label: "APPAREL" },
-  { value: "headwear", label: "HEADWEAR" },
-  { value: "eyewear", label: "EYEWEAR" }
-];
-
-const CATEGORY_MAP = {
+const DEFAULT_CATEGORY_MAP = {
   footwear: ["Shoes", "boots", "sandals", "sneakers"],
   apparel: ["Shirts", "t-shirts", "Waffle T-shirt", "jackets", "pants", "jeans", "dresses", "socks", "jersey", "jerseys"],
   headwear: ["Hats", "caps", "beanies"],
@@ -54,6 +46,19 @@ const CATEGORY_MAP = {
 };
 
 export default function WebsiteProducts() {
+  const catalogConfig = useQuery(api.siteSettings.getCatalogConfig);
+  const COLORS = catalogConfig?.colors || DEFAULT_COLORS;
+  const CATEGORY_MAP = catalogConfig?.categoryMap || DEFAULT_CATEGORY_MAP;
+  const MAIN_CATEGORIES = [
+    { value: "all", label: "ALL CATEGORIES" },
+    ...(catalogConfig?.mainCategories || [
+      { value: "footwear", label: "Footwear" },
+      { value: "apparel", label: "Apparel / Clothing" },
+      { value: "headwear", label: "Headwear" },
+      { value: "eyewear", label: "Eyewear" }
+    ]).map((m) => ({ value: m.value, label: m.label.toUpperCase() }))
+  ];
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("all"); 
