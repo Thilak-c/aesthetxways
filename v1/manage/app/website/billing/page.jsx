@@ -71,7 +71,6 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import WhatsAppRecoveryModal from "@/components/WhatsAppRecoveryModal";
 
 const SIZE_ORDER = ["S", "M", "L", "XL", "XXL", "XXXL"];
 const DEFAULT_CASHIERS = [
@@ -242,7 +241,6 @@ export default function NewBillingPage() {
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState("percentage"); // "percentage" | "flat"
   const [flatDiscount, setFlatDiscount] = useState(0);
-  const [recoveryModalData, setRecoveryModalData] = useState(null);
   const [currentTime, setCurrentTime] = useState("");
 
   // Navigation Tabs & Billing History States
@@ -598,6 +596,7 @@ export default function NewBillingPage() {
   // Convex Queries & Mutations
   const products = useQuery(api.inventory.getWebsiteProductsForBilling, {});
   const createBill = useMutation(api.inventory.createWebsitePOSBill);
+  const deleteBillMutation = useMutation(api.inventory.deleteBill);
   const billsHistory = useQuery(api.inventory.getBillingHistory, { limit: 500 }) || [];
   const onlineOrders = useQuery(api.orders.getAllOrders, { limit: 500 }) || [];
   const allUsers = useQuery(api.users.getAllUsers, {}) || [];
@@ -605,6 +604,26 @@ export default function NewBillingPage() {
   const savePosBranchesMutation = useMutation(api.siteSettings.savePosBranches);
   const cloudPosUsers = useQuery(api.siteSettings.getPosUsers, {});
   const savePosUsersMutation = useMutation(api.siteSettings.savePosUsers);
+
+  // Delete bill action (admin only)
+  const handleDeleteBill = async (bill) => {
+    if (userRole !== "admin") {
+      toast.error("Only administrators can delete bill records.");
+      return;
+    }
+    const label = bill.billNumber || bill._id;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete bill #${label}? This action is irreversible.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteBillMutation({ billId: bill._id });
+      toast.success(`Bill #${label} deleted successfully`);
+    } catch (err) {
+      toast.error(err.message || "Failed to delete bill");
+    }
+  };
 
   // Sync Cloud POS Branches from Convex Database in real-time
   useEffect(() => {
@@ -2935,14 +2954,14 @@ export default function NewBillingPage() {
                                   <Printer size={12} />
                                   <span>Reprint</span>
                                 </button>
-                                {bill.customerPhone && (
+                                {userRole === "admin" && (
                                   <button
-                                    onClick={() => setRecoveryModalData(bill)}
-                                    className="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xs text-[10px] font-mono flex items-center gap-1 border border-emerald-200 cursor-pointer"
-                                    title="Send WhatsApp Bill"
+                                    onClick={() => handleDeleteBill(bill)}
+                                    className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-xs text-[10px] font-mono flex items-center gap-1 border border-red-200 cursor-pointer transition-colors"
+                                    title="Delete Bill (Admin Only)"
                                   >
-                                    <MessageCircle size={12} />
-                                    <span>WhatsApp</span>
+                                    <Trash2 size={12} />
+                                    <span>Delete</span>
                                   </button>
                                 )}
                               </div>
@@ -3675,14 +3694,6 @@ export default function NewBillingPage() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* WhatsApp Recovery Modal */}
-      {recoveryModalData && (
-        <WhatsAppRecoveryModal
-          bill={recoveryModalData}
-          onClose={() => setRecoveryModalData(null)}
-        />
-      )}
     </div>
   );
 }

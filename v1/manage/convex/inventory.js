@@ -482,6 +482,32 @@ export const getBillByNumber = query({
   },
 });
 
+// Delete bill from billing history (admin only)
+export const deleteBill = mutation({
+  args: {
+    billId: v.optional(v.id("bills")),
+    billNumber: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let target = null;
+    if (args.billId) {
+      target = await ctx.db.get(args.billId);
+    } else if (args.billNumber) {
+      target = await ctx.db
+        .query("bills")
+        .withIndex("by_bill_number", (q) => q.eq("billNumber", args.billNumber))
+        .first();
+    }
+
+    if (!target) {
+      throw new Error("Bill record not found");
+    }
+
+    await ctx.db.delete(target._id);
+    return { success: true, billNumber: target.billNumber };
+  },
+});
+
 
 
 
