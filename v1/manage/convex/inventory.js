@@ -508,6 +508,56 @@ export const deleteBill = mutation({
   },
 });
 
+// Update bill record (admin only)
+export const updateBill = mutation({
+  args: {
+    billId: v.id("bills"),
+    customerName: v.optional(v.string()),
+    customerPhone: v.optional(v.string()),
+    paymentMethod: v.optional(v.string()),
+    discount: v.optional(v.float64()),
+    discountAmount: v.optional(v.float64()),
+    discountType: v.optional(v.string()),
+    subtotal: v.optional(v.float64()),
+    tax: v.optional(v.float64()),
+    total: v.optional(v.float64()),
+    items: v.optional(v.array(v.object({
+      productId: v.optional(v.string()),
+      productName: v.string(),
+      productImage: v.optional(v.string()),
+      itemId: v.string(),
+      size: v.string(),
+      price: v.float64(),
+      quantity: v.float64(),
+    }))),
+    splitDetails: v.optional(v.object({
+      cash: v.float64(),
+      online: v.float64(),
+    })),
+  },
+  handler: async (ctx, { billId, ...updates }) => {
+    const existing = await ctx.db.get(billId);
+    if (!existing) throw new Error("Bill not found");
+
+    const patchData = {};
+    if (updates.customerName !== undefined) patchData.customerName = updates.customerName;
+    if (updates.customerPhone !== undefined) patchData.customerPhone = updates.customerPhone;
+    if (updates.paymentMethod !== undefined) patchData.paymentMethod = updates.paymentMethod;
+    if (updates.discount !== undefined) patchData.discount = updates.discount;
+    if (updates.discountAmount !== undefined) patchData.discountAmount = updates.discountAmount;
+    if (updates.discountType !== undefined) patchData.discountType = updates.discountType;
+    if (updates.subtotal !== undefined) patchData.subtotal = updates.subtotal;
+    if (updates.tax !== undefined) patchData.tax = updates.tax;
+    if (updates.total !== undefined) patchData.total = updates.total;
+    if (updates.items !== undefined) patchData.items = updates.items;
+    if (updates.splitDetails !== undefined) patchData.splitDetails = updates.splitDetails;
+    patchData.updatedAt = nowIso();
+
+    await ctx.db.patch(billId, patchData);
+    return { success: true, billId };
+  },
+});
+
 
 
 

@@ -246,6 +246,9 @@ export default function NewBillingPage() {
   // Navigation Tabs & Billing History States
   const [activeTab, setActiveTab] = useState("billing"); // "billing" | "history" | "billing_products" | "settings"
   const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [editingHistoryBill, setEditingHistoryBill] = useState(null);
+  const [editHistoryForm, setEditHistoryForm] = useState(null);
+  const [isSavingHistoryEdit, setIsSavingHistoryEdit] = useState(false);
 
   // Quick Billing Product Form & Edit State (Asking Name & Price only)
   const [newBillingProductForm, setNewBillingProductForm] = useState({ name: "", price: "" });
@@ -597,6 +600,7 @@ export default function NewBillingPage() {
   const products = useQuery(api.inventory.getWebsiteProductsForBilling, {});
   const createBill = useMutation(api.inventory.createWebsitePOSBill);
   const deleteBillMutation = useMutation(api.inventory.deleteBill);
+  const updateBillMutation = useMutation(api.inventory.updateBill);
   const billsHistory = useQuery(api.inventory.getBillingHistory, { limit: 500 }) || [];
   const onlineOrders = useQuery(api.orders.getAllOrders, { limit: 500 }) || [];
   const allUsers = useQuery(api.users.getAllUsers, {}) || [];
@@ -604,6 +608,97 @@ export default function NewBillingPage() {
   const savePosBranchesMutation = useMutation(api.siteSettings.savePosBranches);
   const cloudPosUsers = useQuery(api.siteSettings.getPosUsers, {});
   const savePosUsersMutation = useMutation(api.siteSettings.savePosUsers);
+
+  // Start edit bill action (admin only)
+  const handleStartEditBill = (bill) => {
+    setEditingHistoryBill(bill);
+    setEditHistoryForm({
+      customerName: bill.customerName || "",
+      customerPhone: bill.customerPhone || "",
+      paymentMethod: bill.paymentMethod || "cash",
+      discount: bill.discount || 0,
+      discountType: bill.discountType || "percentage",
+      items: (bill.items || []).map((item) => ({ ...item })),
+    });
+  };
+
+  const calculateEditBillFinancials = (form) => {
+    if (!form || !form.items) return { subtotal: 0, discountAmount: 0, tax: 0, total: 0 };
+    const subtotal = form.items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
+    let discountAmount = 0;
+    if (form.discountType === "flat") {
+      discountAmount = Math.min(Number(form.discount) || 0, subtotal);
+    } else {
+      discountAmount = (subtotal * (Number(form.discount) || 0)) / 100;
+    }
+    const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+    const tax = Number((discountedSubtotal * 0.05).toFixed(2));
+    const total = Number((discountedSubtotal + tax).toFixed(2));
+    return { subtotal, discountAmount, tax, total };
+  };
+
+  const handleSaveHistoryEdit = async (e) => {
+    e?.preventDefault();
+    if (!editingHistoryBill || !editHistoryForm) return;
+    if (!editHistoryForm.items || editHistoryForm.items.length === 0) {
+      toast.error("Bill must contain at least one product");
+      return;
+    }
+
+    setIsSavingHistoryEdit(true);
+    const { subtotal, discountAmount, tax, total } = calculateEditBillFinancials(editHistoryForm);
+
+    try {
+      await updateBillMutation({
+        billId: editingHistoryBill._id,
+        customerName: editHistoryForm.customerName.trim() || undefined,
+        customerPhone: editHistoryForm.customerPhone.trim() || undefined,
+        paymentMethod: editHistoryForm.paymentMethod,
+        discount: Number(editHistoryForm.discount) || 0,
+        discountAmount,
+        discountType: editHistoryForm.discountType,
+        subtotal,
+        tax,
+        total,
+        items: editHistoryForm.items.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          productImage: item.productImage || undefined,
+          itemId: item.itemId,
+          size: item.size,
+          price: Number(item.price) || 0,
+          quantity: Number(item.quantity) || 1,
+        })),
+      });
+
+      toast.success(`Bill #${editingHistoryBill.billNumber} updated successfully`);
+      setEditingHistoryBill(null);
+      setEditHistoryForm(null);
+    } catch (err) {
+      toast.error(err.message || "Failed to update bill");
+    } finally {
+      setIsSavingHistoryEdit(false);
+    }
+  };
+
+  const handleLoadBillToCounter = (bill) => {
+    setCart((bill.items || []).map((item) => ({
+      ...item,
+      quantity: Number(item.quantity) || 1,
+      price: Number(item.price) || 0,
+    })));
+    setCustomerInfo({
+      name: bill.customerName || "",
+      phone: bill.customerPhone || "",
+    });
+    setPaymentMethod(bill.paymentMethod || "cash");
+    setDiscount(bill.discount || 0);
+    setDiscountType(bill.discountType || "percentage");
+    setEditingHistoryBill(null);
+    setEditHistoryForm(null);
+    setActiveTab("billing");
+    toast.success(`Bill #${bill.billNumber} loaded into active billing register`);
+  };
 
   // Delete bill action (admin only)
   const handleDeleteBill = async (bill) => {
@@ -2955,14 +3050,24 @@ export default function NewBillingPage() {
                                   <span>Reprint</span>
                                 </button>
                                 {userRole === "admin" && (
-                                  <button
-                                    onClick={() => handleDeleteBill(bill)}
-                                    className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-xs text-[10px] font-mono flex items-center gap-1 border border-red-200 cursor-pointer transition-colors"
-                                    title="Delete Bill (Admin Only)"
-                                  >
-                                    <Trash2 size={12} />
-                                    <span>Delete</span>
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => handleStartEditBill(bill)}
+                                      className="px-2.5 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 rounded-xs text-[10px] font-mono flex items-center gap-1 border border-amber-200 cursor-pointer transition-colors"
+                                      title="Edit Bill (Admin Only)"
+                                    >
+                                      <Edit2 size={12} />
+                                      <span>Edit</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteBill(bill)}
+                                      className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-xs text-[10px] font-mono flex items-center gap-1 border border-red-200 cursor-pointer transition-colors"
+                                      title="Delete Bill (Admin Only)"
+                                    >
+                                      <Trash2 size={12} />
+                                      <span>Delete</span>
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </td>
@@ -3694,6 +3799,242 @@ export default function NewBillingPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Edit Bill Modal (Admin Only) */}
+      {editingHistoryBill && editHistoryForm && (() => {
+        const financials = calculateEditBillFinancials(editHistoryForm);
+        return (
+          <div className="fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white border border-zinc-200 rounded-sm shadow-2xl max-w-2xl w-full p-5 space-y-4 font-mono max-h-[90vh] overflow-y-auto animate-fadeIn">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-zinc-150 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-xs uppercase">
+                      Admin Edit
+                    </span>
+                    <h3 className="text-base font-bold text-zinc-950 font-sans tracking-tight">
+                      Edit Bill #{editingHistoryBill.billNumber}
+                    </h3>
+                  </div>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">
+                    Created by {editingHistoryBill.createdBy || "Staff"} on {editingHistoryBill.createdAt ? new Date(editingHistoryBill.createdAt).toLocaleString() : "N/A"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingHistoryBill(null);
+                    setEditHistoryForm(null);
+                  }}
+                  className="p-1 hover:bg-zinc-100 rounded text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <form onSubmit={handleSaveHistoryEdit} className="space-y-4 text-xs">
+                {/* Customer Details & Payment Method */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-zinc-50/70 p-3 rounded-xs border border-zinc-150">
+                  <div>
+                    <label className="text-[9px] font-bold text-zinc-500 uppercase block mb-1">Customer Name</label>
+                    <input
+                      type="text"
+                      value={editHistoryForm.customerName}
+                      onChange={(e) => setEditHistoryForm({ ...editHistoryForm, customerName: e.target.value })}
+                      placeholder="e.g. John Doe"
+                      className="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-xs focus:border-zinc-950 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-zinc-500 uppercase block mb-1">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={editHistoryForm.customerPhone}
+                      onChange={(e) => setEditHistoryForm({ ...editHistoryForm, customerPhone: e.target.value })}
+                      placeholder="10 digit phone"
+                      className="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-xs focus:border-zinc-950 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-zinc-500 uppercase block mb-1">Payment Method</label>
+                    <select
+                      value={editHistoryForm.paymentMethod}
+                      onChange={(e) => setEditHistoryForm({ ...editHistoryForm, paymentMethod: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-zinc-200 rounded-xs focus:border-zinc-950 focus:outline-none font-bold uppercase cursor-pointer"
+                    >
+                      <option value="cash">CASH</option>
+                      <option value="upi">UPI / QR</option>
+                      <option value="card">CARD</option>
+                      <option value="split">SPLIT PAYMENT</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Items List */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase text-zinc-500 tracking-wider">
+                      Bill Items ({editHistoryForm.items?.length || 0})
+                    </span>
+                  </div>
+
+                  <div className="border border-zinc-150 rounded-xs overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-zinc-100 text-[10px] text-zinc-500 font-bold uppercase border-b border-zinc-150">
+                        <tr>
+                          <th className="p-2">Item</th>
+                          <th className="p-2 text-center">Size</th>
+                          <th className="p-2 text-right">Price (₹)</th>
+                          <th className="p-2 text-center">Qty</th>
+                          <th className="p-2 text-right">Total</th>
+                          <th className="p-2 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {editHistoryForm.items.map((item, idx) => {
+                          const itemTotal = (Number(item.price) || 0) * (Number(item.quantity) || 1);
+                          return (
+                            <tr key={idx} className="hover:bg-zinc-50/50">
+                              <td className="p-2 font-medium text-zinc-900">
+                                <div>{item.productName}</div>
+                                <div className="text-[9px] text-zinc-400 font-mono">{item.itemId}</div>
+                              </td>
+                              <td className="p-2 text-center font-bold text-zinc-700">{item.size}</td>
+                              <td className="p-2 text-right">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.price}
+                                  onChange={(e) => {
+                                    const nextItems = [...editHistoryForm.items];
+                                    nextItems[idx] = { ...nextItems[idx], price: parseFloat(e.target.value) || 0 };
+                                    setEditHistoryForm({ ...editHistoryForm, items: nextItems });
+                                  }}
+                                  className="w-20 px-2 py-1 text-right border border-zinc-200 rounded-xs focus:border-zinc-950 focus:outline-none"
+                                />
+                              </td>
+                              <td className="p-2 text-center">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => {
+                                    const nextItems = [...editHistoryForm.items];
+                                    nextItems[idx] = { ...nextItems[idx], quantity: parseInt(e.target.value) || 1 };
+                                    setEditHistoryForm({ ...editHistoryForm, items: nextItems });
+                                  }}
+                                  className="w-14 px-2 py-1 text-center border border-zinc-200 rounded-xs focus:border-zinc-950 focus:outline-none"
+                                />
+                              </td>
+                              <td className="p-2 text-right font-bold text-zinc-900">₹{itemTotal.toFixed(2)}</td>
+                              <td className="p-2 text-center">
+                                {editHistoryForm.items.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextItems = editHistoryForm.items.filter((_, i) => i !== idx);
+                                      setEditHistoryForm({ ...editHistoryForm, items: nextItems });
+                                    }}
+                                    className="p-1 text-zinc-300 hover:text-red-600 transition-colors cursor-pointer"
+                                    title="Remove item"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Financials & Discount */}
+                <div className="bg-zinc-50 p-3 rounded-xs border border-zinc-150 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-zinc-200">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase text-zinc-500">Discount:</span>
+                      <select
+                        value={editHistoryForm.discountType}
+                        onChange={(e) => setEditHistoryForm({ ...editHistoryForm, discountType: e.target.value })}
+                        className="px-2 py-1 bg-white border border-zinc-200 rounded-xs text-xs font-mono font-bold"
+                      >
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="flat">Flat Amount (₹)</option>
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={editHistoryForm.discount}
+                        onChange={(e) => setEditHistoryForm({ ...editHistoryForm, discount: parseFloat(e.target.value) || 0 })}
+                        className="w-20 px-2 py-1 bg-white border border-zinc-200 rounded-xs text-xs font-mono font-bold focus:border-zinc-950 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-4 text-xs font-mono">
+                      <div>Subtotal: <span className="font-bold text-zinc-900">₹{financials.subtotal.toFixed(2)}</span></div>
+                      <div>Disc: <span className="font-bold text-emerald-600">-₹{financials.discountAmount.toFixed(2)}</span></div>
+                      <div>Tax (5%): <span className="font-bold text-zinc-900">₹{financials.tax.toFixed(2)}</span></div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs font-bold uppercase text-zinc-700">Updated Grand Total:</span>
+                    <span className="text-base font-extrabold text-zinc-950 font-sans">
+                      ₹{financials.total.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-zinc-150">
+                  <button
+                    type="button"
+                    onClick={() => handleLoadBillToCounter(editingHistoryBill)}
+                    className="w-full sm:w-auto px-3 py-1.5 border border-zinc-200 hover:bg-zinc-100 rounded-xs text-xs font-mono font-bold text-zinc-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    title="Load these products into active POS counter register"
+                  >
+                    <ShoppingCart size={13} />
+                    <span>Load to Counter Register</span>
+                  </button>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingHistoryBill(null);
+                        setEditHistoryForm(null);
+                      }}
+                      className="px-4 py-1.5 border border-zinc-200 hover:bg-zinc-100 rounded-xs text-xs font-mono font-bold text-zinc-600 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingHistoryEdit}
+                      className="px-5 py-1.5 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white rounded-xs text-xs font-mono font-bold transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      {isSavingHistoryEdit ? (
+                        <>
+                          <RefreshCw size={12} className="animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <span>Save Changes</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
