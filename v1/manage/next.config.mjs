@@ -8,7 +8,25 @@ const nextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ['fee568a0f5638e.lhr.life', '*.trycloudflare.com', 'localhost'],
+  allowedDevOrigins: [
+    '192.0.0.2',
+    '*.*.*.*',
+    '*.*.*',
+    '*.*',
+    'localhost',
+    '*.localhost',
+    '*.local',
+    '**.local',
+    '*.trycloudflare.com',
+    '**.trycloudflare.com',
+    '*.lhr.life',
+    '**.lhr.life',
+    '*.ngrok-free.app',
+    '**.ngrok-free.app',
+    '*.loca.lt',
+    '**.loca.lt',
+    ...(process.env.ALLOWED_DEV_ORIGINS ? process.env.ALLOWED_DEV_ORIGINS.split(',') : [])
+  ],
 };
 
 export default nextConfig;
