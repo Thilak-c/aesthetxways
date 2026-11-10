@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const clientId = searchParams.get('clientId') || '8008439762';
+    const clientId = searchParams.get('clientId') || '7033769997';
 
     const GATEWAY_URL = `http://localhost:10000/status?clientId=${clientId}`;
     const API_KEY = process.env.WHATSAPP_API_KEY || 'Narzo50pro@gmail.com';

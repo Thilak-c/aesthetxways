@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { convexClient } from '@/lib/convex';
+import { getDb } from '@/lib/mongodb';
 import crypto from 'crypto';
 
 export async function POST(request) {
@@ -16,17 +16,35 @@ export async function POST(request) {
     const emailTrimmed = email.toLowerCase().trim();
     const otpTrimmed = otp.trim();
 
-    // Call Convex mutation to verify OTP and login/signup
-    const result = await convexClient.mutation('auth:verifyEmailOtpAndLogin', {
+    // Verify OTP in MongoDB
+    const db = await getDb();
+    const record = await db.collection('passwordResetOTPs').findOne({
       email: emailTrimmed,
       otp: otpTrimmed,
+      expiresAt: { $gte: new Date() },
     });
 
-    if (!result || !result.success) {
+    if (!record) {
       return NextResponse.json(
-        { success: false, message: result?.message || 'Invalid or expired OTP code.' },
+        { success: false, message: 'Invalid or expired OTP code.' },
         { status: 400 }
       );
+    }
+
+    // Delete used OTP
+    await db.collection('passwordResetOTPs').deleteMany({ email: emailTrimmed });
+
+    // Find or create user in MongoDB
+    let user = await db.collection('users').findOne({ email: emailTrimmed });
+    if (!user) {
+      const newUser = {
+        email: emailTrimmed,
+        name: emailTrimmed.split('@')[0],
+        role: 'user',
+        createdAt: new Date(),
+      };
+      const insertResult = await db.collection('users').insertOne(newUser);
+      user = { ...newUser, _id: insertResult.insertedId };
     }
 
     const secret = process.env.JWT_SECRET || 'aesthetx-secret-2024';
@@ -37,10 +55,10 @@ export async function POST(request) {
       message: 'OTP verified successfully',
       token,
       user: {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-        role: result.user.role,
+        id: user._id?.toString() || user.originalConvexId || user.id,
+        name: user.name || emailTrimmed.split('@')[0],
+        email: user.email,
+        role: user.role || 'user',
       },
     });
 

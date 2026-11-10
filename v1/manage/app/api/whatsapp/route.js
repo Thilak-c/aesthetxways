@@ -28,7 +28,7 @@ export async function POST(request) {
         'X-API-Key': process.env.WHATSAPP_API_KEY || 'Narzo50pro@gmail.com'
       },
       body: JSON.stringify({
-        clientId: clientId || '8008439762', // Target active client account
+        clientId: clientId || '7033769997', // Target active client account
         number: cleanedPhone,
         message: message
       })

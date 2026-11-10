@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, initDb } from '@/lib/mongodb';
-import { trackShiprocketOrder } from '@/lib/shiprocket';
+import { trackDelhiveryOrder } from '@/lib/delhivery';
 
 export async function GET(request) {
   try {
@@ -16,74 +16,57 @@ export async function GET(request) {
       const order = await db.collection('orders').findOne({
         $or: [{ orderId }, { orderNumber: orderId }],
       });
-      if (order && order.shiprocket) {
-        shiprocketOrderId = order.shiprocket.orderId;
-        shipmentId = order.shiprocket.shipmentId;
-        awbCode = order.shiprocket.awbCode;
+      if (order) {
+        awbCode = order.delhivery?.waybill || order.shiprocket?.awbCode || order.shiprocket?.shipmentId;
+        shipmentId = order.delhivery?.waybill || order.shiprocket?.shipmentId;
+        shiprocketOrderId = order.orderId;
       }
     }
 
     if (!shiprocketOrderId && !shipmentId && !awbCode) {
       return NextResponse.json(
-        { error: 'Shiprocket Order ID, Shipment ID, or AWB is required.' },
+        { error: 'Order ID, Shipment ID, or AWB is required.' },
         { status: 400 }
       );
     }
 
-    const trackData = await trackShiprocketOrder({
-      orderId: shiprocketOrderId,
-      shipmentId,
-      awbCode,
+    const waybill = awbCode || shipmentId;
+    const trackData = await trackDelhiveryOrder({
+      waybill,
+      orderId,
     });
 
-    // Parse tracking info cleanly for front-end
+    const dlvTrackUrl = waybill ? `https://www.delhivery.com/track/package/${waybill}` : 'https://www.delhivery.com';
     let trackInfo = null;
-    let trackUrl = '';
 
-    if (Array.isArray(trackData) && trackData[0]) {
-      const firstKey = Object.keys(trackData[0])[0];
-      const details = trackData[0][firstKey]?.tracking_data;
-      if (details) {
-        const shipmentTrack = details.shipment_track?.[0] || {};
-        trackUrl = details.track_url || (shipmentTrack.awb_code ? `https://shiprocket.co/tracking/${shipmentTrack.awb_code}` : '');
-        trackInfo = {
-          currentStatus: shipmentTrack.current_status || details.error || 'Booked',
-          courierName: shipmentTrack.courier_name || '',
-          awbCode: shipmentTrack.awb_code || awbCode || '',
-          edd: shipmentTrack.edd || '',
-          origin: shipmentTrack.origin || '',
-          destination: shipmentTrack.destination || '',
-          activities: details.shipment_track_activities || [],
-          trackUrl: trackUrl || (shiprocketOrderId ? `https://shiprocket.co/tracking/?order_id=${shiprocketOrderId}` : ''),
-        };
-      }
-    } else if (trackData?.tracking_data) {
+    if (trackData?.tracking_data) {
       const details = trackData.tracking_data;
       const shipmentTrack = details.shipment_track?.[0] || {};
-      trackUrl = details.track_url || (shipmentTrack.awb_code ? `https://shiprocket.co/tracking/${shipmentTrack.awb_code}` : '');
       trackInfo = {
         currentStatus: shipmentTrack.current_status || 'In Transit',
-        courierName: shipmentTrack.courier_name || '',
-        awbCode: shipmentTrack.awb_code || awbCode || '',
-        edd: shipmentTrack.edd || '',
+        courierName: shipmentTrack.courier_name || 'Delhivery Surface Express',
+        awbCode: shipmentTrack.awb_code || waybill || '',
+        edd: shipmentTrack.edd || '3-5 Business Days',
+        origin: shipmentTrack.origin || 'Patna Hub',
+        destination: shipmentTrack.destination || '',
         activities: details.shipment_track_activities || [],
-        trackUrl: trackUrl || (shiprocketOrderId ? `https://shiprocket.co/tracking/?order_id=${shiprocketOrderId}` : ''),
+        trackUrl: dlvTrackUrl,
       };
     }
 
     return NextResponse.json({
       success: true,
       data: trackInfo || {
-        currentStatus: 'Order Confirmed & Booked on Shiprocket',
-        trackUrl: awbCode
-          ? `https://shiprocket.co/tracking/${awbCode}`
-          : (shiprocketOrderId ? `https://shiprocket.co/tracking/?order_id=${shiprocketOrderId}` : 'https://shiprocket.co/tracking'),
+        currentStatus: 'Order Confirmed - Preparing for Dispatch',
+        trackUrl: dlvTrackUrl,
+        courierName: 'Delhivery Surface Express',
+        awbCode: waybill || '',
         activities: [],
       },
       raw: trackData,
     });
   } catch (error) {
-    console.error('Shiprocket track API error:', error);
+    console.error('Delhivery track API error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to fetch live tracking details' },
       { status: 500 }

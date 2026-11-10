@@ -5,6 +5,7 @@ export async function POST(request) {
     const { amount, receipt, notes, items } = await request.json();
 
     let finalAmount = Number(amount);
+    const isPartialCod = notes?.method === 'partial_cod' || notes?.paymentMethod === 'partial_cod' || notes?.isPartialCod;
 
     // Verify and compute server-side amount from items if provided to prevent price tampering
     if (Array.isArray(items) && items.length > 0) {
@@ -16,8 +17,11 @@ export async function POST(request) {
 
       if (computedSubtotal > 0) {
         const computedShipping = computedSubtotal > 2499 ? 129 : 79;
-        finalAmount = computedSubtotal + computedShipping;
+        const totalGrand = computedSubtotal + computedShipping;
+        finalAmount = isPartialCod ? 200 : totalGrand;
       }
+    } else if (isPartialCod) {
+      finalAmount = 200;
     }
 
     if (!finalAmount || finalAmount <= 0) {

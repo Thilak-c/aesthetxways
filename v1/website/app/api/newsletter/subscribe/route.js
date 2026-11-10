@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { convexClient } from '@/lib/convex';
+import { getDb } from '@/lib/mongodb';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   try {
@@ -14,7 +16,6 @@ export async function POST(request) {
 
     const emailTrimmed = email.toLowerCase().trim();
 
-    // Email regex validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
       return NextResponse.json(
         { success: false, message: 'Please enter a valid email address' },
@@ -22,11 +23,14 @@ export async function POST(request) {
       );
     }
 
-    const result = await convexClient.mutation('webStore:subscribeNewsletter', {
-      email: emailTrimmed,
-    });
+    const db = await getDb();
+    await db.collection('subscribers').updateOne(
+      { email: emailTrimmed },
+      { $set: { email: emailTrimmed, subscribedAt: new Date() } },
+      { upsert: true }
+    );
 
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, message: 'Subscribed successfully!' });
   } catch (error) {
     console.error('Error subscribing to newsletter:', error);
     return NextResponse.json(

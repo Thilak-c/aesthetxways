@@ -5,11 +5,9 @@ import { api } from "./_generated/api";
 // Helper function to get current timestamp
 const nowIso = () => new Date().toISOString();
 
-// Generate unique order number
+// Generate unique order number (simple 6-digit number, e.g. 254312)
 const generateOrderNumber = () => {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substr(2, 5).toUpperCase();
-  return `ORD${timestamp}${random}`;
+  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 // Calculate estimated delivery date - now gets updated by Shiprocket integration
@@ -770,8 +768,7 @@ export const seedMockOrders = mutation({
     let orderCount = 0;
     for (const timestamp of allTimes) {
       orderCount++;
-      const randomSuffix = Math.random().toString(36).substr(2, 5).toUpperCase();
-      const orderNumber = `ORD-MOCK-${timestamp}-${randomSuffix}`;
+      const orderNumber = Math.floor(100000 + Math.random() * 900000).toString();
       
       const city = ["Delhi", "Mumbai", "Bangalore", "Patna", "Pune"][orderCount % 5];
 

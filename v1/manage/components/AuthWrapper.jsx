@@ -19,7 +19,7 @@ export default function AuthWrapper({ children }) {
       !pathname.startsWith("/api");
 
     // Skip auth check on login page, public E-bill paths, and Billing page (which handles inline PIN auth)
-    if (pathname === "/login" || pathname === "/website/billing" || pathname === "/website/Bill-offline" || isPublicReceipt) {
+    if (pathname === "/login" || pathname === "/website/billing" || isPublicReceipt) {
       setIsChecking(false);
       return;
     }
@@ -67,7 +67,7 @@ export default function AuthWrapper({ children }) {
   }
 
   // On login page, billing desk (inline PIN auth), or public E-bill paths, just render children
-  if (pathname === "/login" || pathname === "/website/billing" || pathname === "/website/Bill-offline" || isPublicReceipt) {
+  if (pathname === "/login" || pathname === "/website/billing" || isPublicReceipt) {
     return children;
   }
 

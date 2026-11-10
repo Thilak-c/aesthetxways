@@ -52,7 +52,7 @@ export default function Sidebar({ defaultSmall = null }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   // Auto-collapse when on billing desk
-  const isBillingDesk = pathname === "/website/billing" || pathname === "/website/Bill-offline";
+  const isBillingDesk = pathname === "/website/billing";
   const [isSmall, setIsSmall] = useState(defaultSmall !== null ? defaultSmall : isBillingDesk);
 
   useEffect(() => {

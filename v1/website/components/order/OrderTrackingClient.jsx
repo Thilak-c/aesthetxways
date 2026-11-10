@@ -158,6 +158,8 @@ export default function OrderTrackingClient({ initialOrder, orderId }) {
   const addr = customer.address && typeof customer.address === 'object' ? customer.address : (order.address || {});
   const items = order.items || [];
   const shiprocket = order.shiprocket || {};
+  const delhivery = order.delhivery || {};
+  const awbCode = delhivery.waybill || shiprocket.awbCode || liveTrack?.awbCode;
 
   // Construct Full Address String
   const addressLine = typeof customer.address === 'string'
@@ -173,18 +175,18 @@ export default function OrderTrackingClient({ initialOrder, orderId }) {
         .filter(Boolean)
         .join(', ');
 
-  // Direct Shiprocket Tracking URL
+  // Direct Delhivery Tracking URL
   const publicTrackingUrl =
     liveTrack?.trackUrl ||
-    (shiprocket.awbCode ? `https://shiprocket.co/tracking/${shiprocket.awbCode}` : '') ||
-    (shiprocket.orderId ? `https://shiprocket.co/tracking/?order_id=${shiprocket.orderId}` : 'https://shiprocket.co/tracking');
+    delhivery.trackingUrl ||
+    (awbCode ? `https://www.delhivery.com/track/package/${awbCode}` : 'https://www.delhivery.com');
 
   // Tracking Progress Stage
   const currentFulfillment = (order.fulfillmentStatus || order.status || order.orderStatus || 'confirmed').toLowerCase();
   const isDelivered = currentFulfillment === 'delivered';
   const isShipped = isDelivered || currentFulfillment === 'shipped' || currentFulfillment === 'in_transit';
-  const isPickupScheduled = isShipped || currentFulfillment === 'pickup_scheduled' || shiprocket.status === 'PICKUP_SCHEDULED';
-  const isReadyToShip = isPickupScheduled || currentFulfillment === 'ready_to_ship' || !!shiprocket.awbCode;
+  const isPickupScheduled = isShipped || currentFulfillment === 'pickup_scheduled' || shiprocket.status === 'PICKUP_SCHEDULED' || delhivery.status === 'PICKUP_SCHEDULED';
+  const isReadyToShip = isPickupScheduled || currentFulfillment === 'ready_to_ship' || !!awbCode;
   const isProcessing = isReadyToShip || currentFulfillment === 'processing' || currentFulfillment === 'confirmed' || currentFulfillment === 'pending';
 
   // Payment Breakdown
@@ -197,10 +199,10 @@ export default function OrderTrackingClient({ initialOrder, orderId }) {
     ? Number(order.shippingFee)
     : (itemsTotal > 2499 || totalVal > 2499 ? 129 : 79);
   const bagTotal = itemsTotal > 0 ? itemsTotal : Math.max(0, totalVal - shippingCharge);
-  const paymentMethod = order.payment?.method || order.paymentMethod || 'upi';
-  const isPartialCod = paymentMethod === 'partial_cod' || paymentMethod === 'cod';
-  const advancePaid = isPartialCod ? Number(order.payment?.advancePaid ?? 200) : Number(totalVal);
-  const balanceDue = isPartialCod ? Number(order.payment?.balanceDue ?? Math.max(0, totalVal - advancePaid)) : 0;
+  const rawMethod = (order.payment?.method || order.paymentMethod || '').toLowerCase();
+  const isPartialCod = rawMethod === 'partial_cod' || rawMethod === 'cod' || (Number(order.payment?.advancePaid ?? order.advancePaid) > 0 && Number(order.payment?.advancePaid ?? order.advancePaid) < Number(totalVal));
+  const advancePaid = isPartialCod ? Number(order.payment?.advancePaid ?? order.advancePaid ?? 200) : Number(totalVal);
+  const balanceDue = isPartialCod ? Number(order.payment?.balanceDue ?? order.balanceDue ?? Math.max(0, totalVal - advancePaid)) : 0;
   const displayOrderId = order.orderId || order.orderNumber;
 
   return (
@@ -214,14 +216,7 @@ export default function OrderTrackingClient({ initialOrder, orderId }) {
                 Thank you, {customer.name || customer.fullName || 'Customer'}!
               </h1>
               <div className="flex flex-wrap items-center gap-2.5 mt-2">
-                <span className="text-[13px] text-[#707072]">Order ID: {displayOrderId}</span>
-                <button
-                  type="button"
-                  onClick={handleCopyId}
-                  className="text-[11px] uppercase tracking-wider text-neutral-500 hover:text-black font-semibold px-2 py-0.5 rounded-md border border-neutral-200 hover:border-black transition-colors"
-                >
-                  {copied ? 'Copied' : 'Copy'}
-                </button>
+              
               </div>
             </div>
           </div>
@@ -310,9 +305,30 @@ export default function OrderTrackingClient({ initialOrder, orderId }) {
 
           <div className="py-3">
             <p className="text-[11px] text-neutral-500">Courier AWB Number</p>
-            <p className="text-[14px] font-semibold text-[#111111] underline">
-              {liveTrack?.awbCode || shiprocket.awbCode || 'Assigned at Dispatch'}
-            </p>
+            {awbCode ? (
+              <a
+                href={`https://www.delhivery.com/track/package/${awbCode}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-[#111111] hover:text-blue-600 underline underline-offset-4 transition-colors group cursor-pointer"
+                title="Track package on Delhivery"
+              >
+                <span>{awbCode}</span>
+                <svg
+                  className="w-3.5 h-3.5 text-neutral-400 group-hover:text-blue-600 transition-colors"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            ) : (
+              <p className="text-[14px] font-medium text-neutral-400">
+                Assigned at Dispatch
+              </p>
+            )}
           </div>
         </div>
 
@@ -419,37 +435,56 @@ export default function OrderTrackingClient({ initialOrder, orderId }) {
           </div>
 
           {/* Pricing Summary */}
-          <div className="border-t border-[#e5e5e5] pt-6 mt-6 space-y-3.5 text-[15px] sm:text-[16px] text-[#111111]">
-            <div className="flex items-center justify-between">
-              <span>Bag Total</span>
-              <span>₹ {bagTotal.toLocaleString('en-IN')}</span>
-            </div>
+          {(() => {
+            const orderDiscount = order.pricing?.discount !== undefined 
+              ? Number(order.pricing.discount) 
+              : (order.discount !== undefined ? Number(order.discount) : Math.max(0, itemsTotal + shippingCharge - totalVal));
 
-            <div className="flex items-center justify-between">
-              <span>Shipping Charges</span>
-              <span className="font-medium text-[#111111]">₹ {shippingCharge}</span>
-            </div>
+            return (
+              <div className="border-t border-[#e5e5e5] pt-6 mt-6 space-y-3 text-[14.5px] sm:text-[15.5px] text-[#111111]">
+                {items.map((it, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-neutral-700">
+                    <span className="truncate pr-3 max-w-[420px]">{it.name} {it.quantity > 1 ? `(${it.quantity}x)` : ''}</span>
+                    <span className="font-medium text-[#111111] shrink-0">₹ {((it.priceNumber || it.price || 0) * (it.quantity || 1)).toLocaleString('en-IN')}</span>
+                  </div>
+                ))}
 
-            {isPartialCod && (
-              <div className="flex items-center justify-between text-[#707072]">
-                <span>Advance Paid Online</span>
-                <span className="text-[#111111] font-medium">₹ {advancePaid.toLocaleString('en-IN')}</span>
+                <div className="flex items-center justify-between text-neutral-700 pt-1">
+                  <span>delivery</span>
+                  <span className="font-medium text-[#111111]">{shippingCharge > 0 ? `₹ ${shippingCharge}` : 'Free'}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-neutral-700">
+                  <span>discount</span>
+                  <span className={`font-medium ${orderDiscount > 0 ? 'text-[#008a00]' : 'text-neutral-700'}`}>
+                    {orderDiscount > 0 ? `- ₹ ${orderDiscount}` : '₹ 0'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between font-bold text-[16px] sm:text-[17px] pt-2 border-t border-[#f0f0f0]">
+                  <span>total</span>
+                  <span>₹ {totalVal.toLocaleString('en-IN')}</span>
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           <div className="border-t border-[#e5e5e5] my-4" />
 
           {isPartialCod ? (
-            <div className="flex items-center justify-between text-[17px] sm:text-[18px] font-bold text-[#111111]">
-              <span className="flex items-center gap-2">
-                <span>Due on Delivery</span>
-              </span>
-              <span>₹ {balanceDue.toLocaleString('en-IN')}</span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-[16px] sm:text-[17px] font-semibold text-[#008a00]">
+                <span>Total Paid</span>
+                <span>₹ {advancePaid.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex items-center justify-between text-[17px] sm:text-[18px] font-bold text-amber-900">
+                <span>Remaining</span>
+                <span>₹ {balanceDue.toLocaleString('en-IN')}</span>
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-between text-[17px] sm:text-[18px] font-bold text-[#111111]">
-              <span>You Paid</span>
+              <span>Total Paid</span>
               <span>₹ {totalVal.toLocaleString('en-IN')}</span>
             </div>
           )}

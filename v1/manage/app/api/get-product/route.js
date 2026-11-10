@@ -1,25 +1,32 @@
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "@/convex/_generated/api";
+import { NextResponse } from "next/server";
+import { initDb } from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
 
 export const dynamic = "force-dynamic";
-
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
   if (!id) {
-    return Response.json({ error: "Missing product ID" }, { status: 400 });
+    return NextResponse.json({ error: "Missing product ID" }, { status: 400 });
   }
 
   try {
-    const product = await convex.query(api.products.getProductForEdit, { id });
-    if (!product) {
-      return Response.json({ error: "Product not found" }, { status: 404 });
+    const db = await initDb();
+    const query = { $or: [{ slug: id }, { itemId: id }, { id }] };
+    if (typeof id === "string" && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+      query.$or.push({ _id: new ObjectId(id) });
     }
-    return Response.json(product);
+    const product = await db.collection("products").findOne(query);
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+    return NextResponse.json({
+      ...product,
+      _id: String(product._id),
+    });
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

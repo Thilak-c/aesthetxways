@@ -337,6 +337,7 @@ export default defineSchema({
     })),
     customerName: v.optional(v.string()),
     customerPhone: v.optional(v.string()),
+    customerEmail: v.optional(v.string()),
     subtotal: v.float64(),
     discount: v.optional(v.number()), // Discount percentage (0, 5, 10)
     discountAmount: v.optional(v.float64()), // Discount amount in rupees
@@ -400,6 +401,7 @@ export default defineSchema({
     }))),
     customerName: v.optional(v.string()),
     customerPhone: v.optional(v.string()),
+    customerEmail: v.optional(v.string()),
     reason: v.string(),
     refundAmount: v.float64(),
     additionalPayment: v.optional(v.float64()), // For exchange with price difference

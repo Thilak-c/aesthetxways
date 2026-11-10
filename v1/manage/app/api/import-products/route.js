@@ -1,16 +1,12 @@
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "@/convex/_generated/api";
 import { NextResponse } from "next/server";
+import { initDb } from "@/lib/mongodb";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   try {
-    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-    if (!convexUrl) {
-      return NextResponse.json({ success: 0, failed: 0, errors: ["CONVEX_URL not configured"] }, { status: 500 });
-    }
-    
-    const convex = new ConvexHttpClient(convexUrl);
-    const { products, store } = await request.json();
+    const db = await initDb();
+    const { products } = await request.json();
 
     if (!products || !Array.isArray(products)) {
       return NextResponse.json({ success: 0, failed: 0, errors: ["Invalid products data"] }, { status: 400 });
@@ -22,14 +18,12 @@ export async function POST(request) {
 
     for (const product of products) {
       try {
-        // Validate required fields
         if (!product.itemId || !product.name || !product.price) {
           errors.push(`Missing required fields for product: ${product.itemId || product.name || "unknown"}`);
           failed++;
           continue;
         }
 
-        // Build sizeStock if only totalStock provided
         let sizeStock = product.sizeStock || {};
         let availableSizes = product.availableSizes || [];
         
@@ -39,28 +33,44 @@ export async function POST(request) {
         }
         
         const currentStock = Object.values(sizeStock).reduce((sum, qty) => sum + (Number(qty) || 0), 0);
+        const priceNum = Number(product.price) || 0;
+        const cleanSlug = product.slug || product.itemId;
 
-        // Import to products table (website store)
-        await convex.mutation(api.products.insert, {
+        const doc = {
+          id: cleanSlug,
+          slug: cleanSlug,
           itemId: product.itemId,
+          sku: product.sku || `AW-${cleanSlug.slice(0, 8).toUpperCase()}`,
           name: product.name,
+          title: product.name,
           category: product.category || "Uncategorized",
+          mainCategory: product.category || "Uncategorized",
           description: product.description || "",
           mainImage: product.mainImage || "",
+          image: product.mainImage || "",
+          gallery: Array.isArray(product.otherImages) && product.otherImages.length > 0 ? [product.mainImage, ...product.otherImages].filter(Boolean) : (product.mainImage ? [product.mainImage] : []),
           otherImages: product.otherImages || [],
-          price: Number(product.price),
-          costPrice: Number(product.costPrice) || 0,
+          price: `₹${priceNum.toLocaleString("en-IN")}`,
+          priceNumber: priceNum,
+          costPrice: Number(product.costPrice) || null,
           color: product.color || "",
           secondaryColor: product.secondaryColor || "",
           availableSizes: availableSizes,
           sizeStock: sizeStock,
+          stockQuantity: currentStock,
           currentStock: currentStock,
           totalAvailable: currentStock,
           inStock: currentStock > 0,
           isDeleted: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        await db.collection("products").updateOne(
+          { $or: [{ itemId: product.itemId }, { slug: cleanSlug }] },
+          { $set: doc },
+          { upsert: true }
+        );
         success++;
       } catch (err) {
         errors.push(`Failed to import ${product.itemId || product.name}: ${err.message}`);

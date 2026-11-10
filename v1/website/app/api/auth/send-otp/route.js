@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { convexClient } from '@/lib/convex';
+import { getDb } from '@/lib/mongodb';
 import crypto from 'crypto';
 
 // In-memory rate limiting: max 3 requests per 10 minutes per email
@@ -75,11 +75,13 @@ export async function POST(request) {
     const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes ISO string
 
-    // Save OTP to Convex
-    await convexClient.mutation('auth:generateEmailOtp', {
+    // Save OTP to MongoDB
+    const db = await getDb();
+    await db.collection('passwordResetOTPs').insertOne({
       email: emailTrimmed,
       otp,
-      expiresAt,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      createdAt: new Date(),
     });
 
     const mailOptions = {

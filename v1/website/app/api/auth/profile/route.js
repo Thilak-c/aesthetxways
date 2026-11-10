@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { convexClient } from '@/lib/convex';
+import { getDb } from '@/lib/mongodb';
 import crypto from 'crypto';
 
 export async function GET(request) {
@@ -41,9 +41,10 @@ export async function GET(request) {
       );
     }
 
-    // Fetch user profile from Convex
-    const user = await convexClient.query('users:getProfileByEmail', {
-      email: email.toLowerCase().trim()
+    // Fetch user profile from MongoDB
+    const db = await getDb();
+    const user = await db.collection('users').findOne({
+      email: emailTrimmed
     });
 
     if (!user) {

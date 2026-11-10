@@ -1,8 +1,9 @@
-import { convexClient } from './convex';
+import { getDb } from './mongodb';
 
 export async function getBanners() {
   try {
-    const banners = await convexClient.query('banners:getBanners');
+    const db = await getDb();
+    const banners = await db.collection('banners').find({}).toArray();
     const manageUrl = process.env.NEXT_PUBLIC_INSYS_URL || 'https://manage.aesthetxways.com';
     return (banners || []).map((banner) => {
       let imageUrl = banner.imageUrl;
@@ -15,7 +16,7 @@ export async function getBanners() {
       return { ...banner, imageUrl };
     });
   } catch (error) {
-    console.warn('Failed to fetch banners from Convex, falling back to empty list:', error.message);
+    console.warn('Failed to fetch banners from MongoDB, falling back to empty list:', error.message);
     return [];
   }
 }

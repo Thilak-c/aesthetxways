@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
-import { convexClient } from '@/lib/convex';
+import { getDb } from '@/lib/mongodb';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const result = await convexClient.query('siteSettings:getSiteStatus', {});
+    const db = await getDb();
+    const result = await db.collection('siteSettings').findOne({ key: 'siteStatus' });
     return NextResponse.json({
       success: true,
-      status: result?.status || 'open',
+      status: result?.value || result?.status || 'open',
       message: result?.message || '',
     });
   } catch (error) {
-   
-    // Default to open if there's an error (don't block the site)
     return NextResponse.json({
       success: true,
       status: 'open',

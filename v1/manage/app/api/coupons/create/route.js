@@ -1,52 +1,36 @@
 import { NextResponse } from "next/server";
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "@/convex/_generated/api";
+import { getDb } from "@/lib/mongodb";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   try {
     const body = await request.json();
+    const db = await getDb();
 
-    // Get first admin user from database
-    const users = await convex.query(api.users.getAllUsers);
-    let adminUser = users?.find(u => u.role === "admin" || u.role === "super_admin");
+    // Check if coupon with same code already exists
+    const existing = await db.collection("coupons").findOne({
+      code: (body.code || "").toUpperCase().trim()
+    });
 
-    if (!adminUser) {
-      if (users && users.length > 0) {
-        // Fallback to first user in system
-        adminUser = users[0];
-      } else {
-        // System is completely fresh - auto-initialize a default system administrator
-        try {
-          const res = await convex.mutation(api.auth.createSuperAdmin, {
-            email: "admin@aesthetxways.com",
-            password: "adminPassword123!",
-            name: "System Admin"
-          });
-          if (res && res.userId) {
-            adminUser = { _id: res.userId };
-          }
-        } catch (createErr) {
-          console.error("Auto super-admin setup failed:", createErr);
-        }
-      }
-    }
-
-    if (!adminUser) {
+    if (existing) {
       return NextResponse.json(
-        { success: false, error: "No admin user found. Please create an admin user first." },
+        { success: false, error: "Coupon code already exists" },
         { status: 400 }
       );
     }
 
-    // Create coupon with admin user ID
-    const result = await convex.mutation(api.coupons.createCoupon, {
+    const newCoupon = {
       ...body,
-      createdBy: adminUser._id,
-    });
+      code: (body.code || "").toUpperCase().trim(),
+      usedCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-    return NextResponse.json({ success: true, couponId: result.couponId });
+    const result = await db.collection("coupons").insertOne(newCoupon);
+
+    return NextResponse.json({ success: true, couponId: result.insertedId.toString() });
   } catch (error) {
     console.error("Coupon creation error:", error);
     return NextResponse.json(

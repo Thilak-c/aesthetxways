@@ -1,9 +1,7 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
     Download, 
     ShoppingBag, 
@@ -32,8 +30,25 @@ export default function DigitalBillPage() {
     const router = useRouter();
     const billNumber = params?.billNumber ? String(params.billNumber) : "";
     
-    // Fetch bill details from Convex
-    const bill = useQuery(api.inventory.getBillByNumber, { billNumber });
+    // Fetch bill details from MongoDB
+    const [bill, setBill] = useState(undefined);
+
+    useEffect(() => {
+        if (!billNumber) return;
+        fetch(`/api/pos/bills/${billNumber}`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && data.bill) {
+                    setBill(data.bill);
+                } else {
+                    setBill(null);
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to load bill from MongoDB:", err);
+                setBill(null);
+            });
+    }, [billNumber]);
     
     // UI Accordion States
     const [taxOpen, setTaxOpen] = useState(true);

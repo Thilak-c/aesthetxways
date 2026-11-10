@@ -395,6 +395,21 @@ export default function OrdersHubClient() {
                       <p className="text-[13px] sm:text-[14px] text-[#707072] mt-0.5 truncate font-normal">
                         {subtitle}
                       </p>
+                      {(() => {
+                        const pm = (order.payment?.method || order.paymentMethod || '').toLowerCase();
+                        const isPartCod = pm === 'partial_cod' || pm === 'cod' || (Number(order.payment?.advancePaid) > 0 && Number(order.payment?.advancePaid) < Number(order.orderTotal || order.totalAmount));
+                        const tot = Number(order.orderTotal || order.pricing?.finalTotal || order.totalAmount || 0);
+                        const adv = Number(order.payment?.advancePaid ?? 200);
+                        const rem = Number(order.payment?.balanceDue ?? Math.max(0, tot - adv));
+                        if (isPartCod) {
+                          return (
+                            <p className="text-[12px] font-semibold text-amber-900 mt-1">
+                              Partial COD • Total Paid: ₹{adv.toLocaleString('en-IN')} • Remaining: ₹{rem.toLocaleString('en-IN')}
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
 

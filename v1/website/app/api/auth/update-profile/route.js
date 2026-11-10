@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { convexClient } from '@/lib/convex';
+import { getDb } from '@/lib/mongodb';
 import crypto from 'crypto';
 
 export async function POST(request) {
@@ -40,11 +40,13 @@ export async function POST(request) {
       );
     }
 
-    // Call Convex mutation to save the dynamic autosave profile fields
-    await convexClient.mutation('users:updateProfileByEmail', {
-      email: emailTrimmed,
-      updates,
-    });
+    // Save profile fields to MongoDB
+    const db = await getDb();
+    await db.collection('users').updateOne(
+      { email: emailTrimmed },
+      { $set: { ...updates, updatedAt: new Date() } },
+      { upsert: true }
+    );
 
     return NextResponse.json({
       success: true,

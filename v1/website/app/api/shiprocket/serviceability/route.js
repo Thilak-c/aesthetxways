@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { checkShiprocketServiceability } from '@/lib/shiprocket';
+import { checkDelhiveryServiceability } from '@/lib/delhivery';
 
 export async function GET(request) {
   try {
@@ -14,10 +14,10 @@ export async function GET(request) {
       );
     }
 
-    const data = await checkShiprocketServiceability(pincode, pickupPincode);
+    const data = await checkDelhiveryServiceability(pincode, pickupPincode);
     return NextResponse.json({ success: true, data });
   } catch (err) {
-    console.error('Shiprocket serviceability API error:', err);
+    console.error('Delhivery serviceability API error:', err);
     return NextResponse.json(
       {
         success: false,

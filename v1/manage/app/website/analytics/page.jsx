@@ -1,1127 +1,767 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import Sidebar from "@/components/Sidebar";
+import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import AdminShell from '@/components/AdminShell';
 import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar
-} from "recharts";
+  Search,
+  Upload,
+  Download,
+  Eye,
+  Package,
+  ShoppingBag,
+  ArrowRight,
+  MoreHorizontal,
+  ExternalLink,
+  Layers,
+  Sparkles,
+  Compass,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  Filter,
+} from 'lucide-react';
 
-export default function AnalyticsDashboardPage() {
-  const [period, setPeriod] = useState("7d"); // '24h', '7d', '30d'
-  const analyticsData = useQuery(api.analytics.getAnalyticsSummary, { period });
-  const isLoading = analyticsData === undefined;
-  
-  const [isMounted, setIsMounted] = useState(false);
+const getStorefrontUrl = (path = '') => {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return `http://localhost:6002${cleanPath}`;
+    }
+  }
+  return `https://aesthetxways.com${cleanPath}`;
+};
+
+export default function AnalyticsPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState('ALL'); // 'ALL' | 'product' | 'page' | 'category' | 'home'
+  const [dbData, setDbData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch real-time view data from API
   useEffect(() => {
-    setIsMounted(true);
+    let isMounted = true;
+    fetch('/api/views?limit=200')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.success) {
+          setDbData(data);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load views analytics:', err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const shades = ["#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#8b5cf6", "#ec4899"];
+  const stats = useMemo(() => {
+    return (
+      dbData?.stats || {
+        totalViews: 0,
+        uniquePagesCount: 0,
+        productViewsCount: 0,
+        categoryViewsCount: 0,
+        homeViewsCount: 0,
+        checkoutViewsCount: 0,
+        otherViewsCount: 0,
+        productViewsPercentage: 0,
+      }
+    );
+  }, [dbData]);
 
-  const showSkeleton = isLoading || !isMounted;
+  // Traffic Distribution for Donut Chart
+  const distribution = useMemo(() => {
+    return (
+      dbData?.trafficDistribution || [
+        { name: 'Product Pages', shortName: 'Products', count: 0, percent: 50, color: '#111111', ringClass: 'bg-[#111111]' },
+        { name: 'Home Page', shortName: 'Home', count: 0, percent: 25, color: '#4b5563', ringClass: 'bg-[#4b5563]' },
+        { name: 'Checkout & Bag', shortName: 'Checkout', count: 0, percent: 15, color: '#9ca3af', ringClass: 'bg-[#9ca3af]' },
+        { name: 'Categories & Other', shortName: 'Browse', count: 0, percent: 10, color: '#d1d5db', ringClass: 'bg-[#d1d5db]' },
+      ]
+    );
+  }, [dbData]);
 
-  // Render Recharts Funnel Area Graph
-  const renderFunnelGraph = () => {
-    if (showSkeleton) {
-      return (
-        <div className="w-full border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 bg-white min-w-0 overflow-hidden">
-          <div className="h-[180px] sm:h-[200px] w-full flex flex-col justify-between font-mono text-[9px] relative overflow-hidden">
-            {/* Grid lines */}
-            <div className="absolute inset-0 flex flex-col justify-between py-2 pointer-events-none">
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-            </div>
-            
-            {/* SVG area/line skeleton */}
-            <div className="absolute inset-0 flex items-end pl-8 pr-4 pb-6">
-              <svg className="w-full h-full text-zinc-100/70" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path
-                  d="M 0 80 Q 25 50 50 60 T 100 20 L 100 100 L 0 100 Z"
-                  fill="currentColor"
-                  className="animate-pulse"
-                />
-                <path
-                  d="M 0 80 Q 25 50 50 60 T 100 20"
-                  fill="none"
-                  stroke="#e4e4e7"
-                  strokeWidth="2"
-                  className="animate-pulse"
-                />
-              </svg>
-            </div>
-            
-            {/* Axes placeholders */}
-            <div className="w-full h-full flex flex-col justify-between pb-6 pl-8 relative z-10">
-              <div className="flex justify-between w-full">
-                <div className="w-8 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-              <div className="flex justify-between w-full">
-                <div className="w-6 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-              <div className="flex justify-between w-full">
-                <div className="w-7 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-              <div className="flex justify-between w-full">
-                <div className="w-4 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-            </div>
-            
-            {/* Fake X-axis labels */}
-            <div className="flex justify-between pl-8 pr-4 pt-2 border-t border-zinc-100 relative z-10 animate-pulse">
-              <div className="w-12 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-16 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-12 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-14 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-12 h-2.5 bg-zinc-100 rounded-xs" />
-            </div>
-          </div>
-        </div>
-      );
-    }
+  // Daily Activity Bars (Mon - Sun)
+  const dailyBars = useMemo(() => {
+    const raw = dbData?.dailyViews || [
+      { day: 'Mon', totalViews: 2, productViews: 1 },
+      { day: 'Tue', totalViews: 3, productViews: 2 },
+      { day: 'Wed', totalViews: 5, productViews: 3 },
+      { day: 'Thu', totalViews: 4, productViews: 2 },
+      { day: 'Fri', totalViews: Math.max(5, stats.totalViews), productViews: stats.productViewsCount },
+    ];
 
-    if (!analyticsData || !analyticsData.funnel || Object.keys(analyticsData.funnel).length === 0) {
-      return (
-        <div className="w-full border border-zinc-100 rounded-sm p-4 mt-2 bg-white text-center py-8 font-mono text-xs text-zinc-400">
-          No funnel data collected
-        </div>
-      );
-    }
+    const xCoords = [55, 115, 175, 235, 295, 355, 415];
+    const maxVal = Math.max(10, ...raw.map((d) => d.totalViews || 0));
 
-    const homepageCount = analyticsData.funnel.homepage || 1;
+    return raw.map((d, idx) => {
+      const tot = d.totalViews || 0;
+      const prod = d.productViews || 0;
+      const x = xCoords[idx] || 55 + idx * 60;
 
-    const data = [
-      { name: "Homepage", count: analyticsData.funnel.homepage || 0 },
-      { name: "Product Pages", count: analyticsData.funnel.viewProduct || 0 },
-      { name: "Cart Page", count: analyticsData.funnel.cart || 0 },
-      { name: "Checkout", count: analyticsData.funnel.checkout || 0 },
-      { name: "Purchases", count: analyticsData.funnel.purchase || 0 }
-    ].map((item) => {
-      const conversion = Math.round((item.count / homepageCount) * 100);
+      const totHeight = tot > 0 ? Math.max(16, Math.min(75, Math.round((tot / maxVal) * 75))) : 4;
+      const prodHeight = prod > 0 ? Math.max(12, Math.min(60, Math.round((prod / maxVal) * 60))) : 0;
+
       return {
-        ...item,
-        "Conversion Rate": `${conversion}%`
+        ...d,
+        x,
+        val: tot >= 1000 ? `${(tot / 1000).toFixed(1)}k` : `${tot}`,
+        totHeight,
+        prodHeight,
       };
     });
+  }, [dbData, stats]);
 
-    // Custom Tooltip component
-    const CustomTooltip = ({ active, payload }) => {
-      if (active && payload && payload.length) {
-        const dataPoint = payload[0].payload;
-        return (
-          <div className="bg-white border border-zinc-150 p-2 font-mono text-[10px] text-zinc-800 shadow-xs">
-            <p className="font-bold text-zinc-950">{dataPoint.name}</p>
-            <p className="mt-1">Visits: {dataPoint.count.toLocaleString()}</p>
-            <p>Overall Conversion: {dataPoint["Conversion Rate"]}</p>
-          </div>
-        );
+  // Scaled Y-Axis reference lines & numbers
+  const yAxisLines = useMemo(() => {
+    const maxVal = Math.max(10, ...dailyBars.map((b) => b.totalViews || 0));
+    const step = Math.ceil(maxVal / 6) || 1;
+    return [
+      { y: 20, val: `${step * 6}` },
+      { y: 50, val: `${step * 5}` },
+      { y: 80, val: `${step * 4}` },
+      { y: 110, val: `${step * 3}` },
+      { y: 140, val: `${step * 2}` },
+      { y: 170, val: `${step * 1}` },
+    ];
+  }, [dailyBars]);
+
+  // Top products list
+  const topProducts = useMemo(() => {
+    return dbData?.topProducts || [];
+  }, [dbData]);
+
+  // All tracked pages list with search and type filter
+  const filteredPages = useMemo(() => {
+    const list = dbData?.views || [];
+    return list.filter((p) => {
+      const path = (p.path || '').toLowerCase();
+      const title = (p.title || '').toLowerCase();
+      const identifier = (p.identifier || '').toLowerCase();
+      const q = searchTerm.toLowerCase().trim();
+
+      const matchesSearch = !q || path.includes(q) || title.includes(q) || identifier.includes(q);
+
+      let matchesType = true;
+      if (selectedTypeFilter === 'product') {
+        matchesType = p.type === 'product' || path.startsWith('/product/') || path.startsWith('/shop/');
+      } else if (selectedTypeFilter === 'home') {
+        matchesType = p.type === 'home' || path === '/';
+      } else if (selectedTypeFilter === 'checkout') {
+        matchesType = path.includes('checkout') || path.includes('bag') || path.includes('cart');
+      } else if (selectedTypeFilter === 'category') {
+        matchesType = p.type === 'category' || path.startsWith('/category/') || path.includes('/collections/');
       }
-      return null;
-    };
 
-    return (
-      <div className="w-full border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 bg-white min-w-0 overflow-hidden">
-        <div className="h-[180px] sm:h-[200px] w-full">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <AreaChart key={period} data={data} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
-              <defs>
-                <linearGradient id="funnelColor" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                stroke="#a1a1aa" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false} 
-                dy={10}
-              />
-              <YAxis 
-                stroke="#a1a1aa" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false}
-                tickFormatter={(tick) => tick.toLocaleString()}
-                dx={-5}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="count" 
-                stroke="#3b82f6" 
-                strokeWidth={1.5} 
-                fillOpacity={1} 
-                fill="url(#funnelColor)" 
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  // Render Recharts Hourly Traffic Graph
-  const renderHourlyGraph = () => {
-    if (showSkeleton) {
-      return (
-        <div className="w-full border border-zinc-100 rounded-sm p-4 mt-2 bg-white">
-          <div className="h-[180px] w-full flex flex-col justify-between font-mono text-[9px] relative overflow-hidden">
-            {/* Grid lines */}
-            <div className="absolute inset-0 flex flex-col justify-between py-2 pointer-events-none">
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-            </div>
-            
-            {/* SVG area/line skeleton */}
-            <div className="absolute inset-0 flex items-end pl-8 pr-4 pb-6">
-              <svg className="w-full h-full text-zinc-100/60" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path
-                  d="M 0 90 Q 15 40 30 70 T 60 30 T 90 50 T 100 20 L 100 100 L 0 100 Z"
-                  fill="currentColor"
-                  className="animate-pulse"
-                />
-                <path
-                  d="M 0 90 Q 15 40 30 70 T 60 30 T 90 50 T 100 20"
-                  fill="none"
-                  stroke="#e4e4e7"
-                  strokeWidth="2"
-                  className="animate-pulse"
-                />
-              </svg>
-            </div>
-            
-            {/* Axes placeholders */}
-            <div className="w-full h-full flex flex-col justify-between pb-6 pl-8 relative z-10">
-              <div className="flex justify-between w-full">
-                <div className="w-8 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-              <div className="flex justify-between w-full">
-                <div className="w-6 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-              <div className="flex justify-between w-full">
-                <div className="w-7 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-            </div>
-            
-            {/* Fake X-axis labels */}
-            <div className="flex justify-between pl-8 pr-4 pt-2 border-t border-zinc-100 relative z-10 animate-pulse">
-              <div className="w-6 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2.5 bg-zinc-100 rounded-xs" />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    const data = analyticsData?.hourlyViews || [];
-    if (data.length === 0) {
-      return (
-        <div className="w-full border border-zinc-100 rounded-sm p-4 mt-2 bg-white text-center py-8 font-mono text-xs text-zinc-400">
-          No traffic data recorded
-        </div>
-      );
-    }
-
-    const CustomTooltip = ({ active, payload }) => {
-      if (active && payload && payload.length) {
-        const dataPoint = payload[0].payload;
-        return (
-          <div className="bg-white border border-zinc-150 p-2 font-mono text-[10px] text-zinc-800 shadow-xs">
-            <p className="font-bold text-zinc-950">{dataPoint.hour}</p>
-            <p className="mt-1">Visitors: {dataPoint.count.toLocaleString()}</p>
-          </div>
-        );
-      }
-      return null;
-    };
-
-    return (
-      <div className="w-full border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 bg-white min-w-0 overflow-hidden">
-        <div className="h-[180px] w-full">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <AreaChart key={period} data={data} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
-              <defs>
-                <linearGradient id="hourlyColor" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
-              <XAxis 
-                dataKey="hour" 
-                stroke="#a1a1aa" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false} 
-                dy={10}
-              />
-              <YAxis 
-                stroke="#a1a1aa" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false}
-                tickFormatter={(tick) => tick.toLocaleString()}
-                dx={-5}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="count" 
-                stroke="#10b981" 
-                strokeWidth={1.5} 
-                fillOpacity={1} 
-                fill="url(#hourlyColor)" 
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  // Reusable Donut Chart Component
-  const renderDonutChart = (data, chartId) => {
-    if (showSkeleton) {
-      return (
-        <div className="border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 font-mono text-xs bg-white flex-1 min-w-0 w-full overflow-hidden">
-          <div className="relative w-[110px] h-[110px] shrink-0 flex items-center justify-center animate-pulse">
-            <svg className="w-full h-full text-zinc-100" viewBox="0 0 36 36">
-              <path
-                className="text-zinc-100"
-                stroke="currentColor"
-                strokeWidth="4.5"
-                fill="none"
-                strokeDasharray="100"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[7px] text-zinc-300 uppercase tracking-widest font-bold">Share</span>
-            </div>
-          </div>
-          <div className="flex-1 w-full flex flex-col gap-2 animate-pulse">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex justify-between py-1.5 border-b border-zinc-50">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-2 h-2 rounded-xs bg-zinc-200 shrink-0" />
-                  <div className="w-16 h-3 bg-zinc-100 rounded-xs" />
-                </div>
-                <div className="w-10 h-3 bg-zinc-100 rounded-xs" />
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    if (!data || data.length === 0) {
-      return (
-        <div className="border border-zinc-100 rounded-sm p-4 mt-2 text-zinc-400 font-mono text-xs bg-white text-center py-8">
-          No records collected
-        </div>
-      );
-    }
-
-    const total = data.reduce((sum, item) => sum + item.value, 0) || 1;
-
-    // Segment data for the chart: Top 5 distinct segments + grouped "Others"
-    const chartData = (() => {
-      if (data.length <= 5) return data;
-      const top5 = data.slice(0, 5);
-      const othersValue = data.slice(5).reduce((sum, item) => sum + item.value, 0);
-      return [...top5, { name: "Others", value: othersValue }];
-    })();
-
-    return (
-      <div className="border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 font-mono text-xs bg-white flex-1 min-w-0 w-full overflow-hidden">
-        {/* Recharts Pie Donut Chart */}
-        <div className="relative w-[110px] h-[110px] shrink-0 flex items-center justify-center">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <PieChart key={period} id={chartId}>
-              <Pie
-                id={`pie-${chartId}`}
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={30}
-                outerRadius={44}
-                paddingAngle={3}
-                dataKey="value"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={shades[index % shades.length]} stroke="white" strokeWidth={1} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => [value.toLocaleString(), "Views"]} contentStyle={{ fontSize: '10px', fontFamily: 'monospace' }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-[7px] text-zinc-400 uppercase tracking-widest font-bold">Share</span>
-          </div>
-        </div>
-
-        {/* Legend list (Fully scrollable, showing all entries in the database) */}
-        <div className="flex-1 w-full flex flex-col gap-1.5 max-h-[120px] overflow-y-auto pr-1">
-          {data.map((item, idx) => {
-            const percentage = Math.round((item.value / total) * 100);
-            // First 5 elements get vivid chart colors, subsequent elements get neutral gray
-            const bulletColor = idx < 5 ? shades[idx] : "#e4e4e7";
-
-            return (
-              <div key={idx} className="flex justify-between items-center py-0.5 border-b border-zinc-50">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-2 h-2 rounded-xs shrink-0" style={{ backgroundColor: bulletColor }} />
-                  <span className="text-zinc-700 font-semibold truncate">{item.name}</span>
-                </div>
-                <span className="text-zinc-900 font-bold shrink-0">
-                  {item.value.toLocaleString()} <span className="text-zinc-400 font-normal ml-0.5">({percentage}%)</span>
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  // Reusable Bar Chart Component
-  const renderBarChart = (data, chartId) => {
-    if (showSkeleton) {
-      return (
-        <div className="border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 bg-white flex-1 min-w-0 w-full overflow-hidden">
-          <div className="h-[140px] w-full flex flex-col justify-between font-mono text-[9px] relative overflow-hidden">
-            {/* Grid lines */}
-            <div className="absolute inset-0 flex flex-col justify-between py-2 pointer-events-none">
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-            </div>
-            
-            {/* Axis & Bars */}
-            <div className="absolute inset-0 flex items-end pl-8 pr-4 pb-5 gap-4 justify-around animate-pulse">
-              <div className="w-6 h-[40%] bg-zinc-100 rounded-t-xs" />
-              <div className="w-6 h-[75%] bg-zinc-100 rounded-t-xs" />
-              <div className="w-6 h-[50%] bg-zinc-100 rounded-t-xs" />
-              <div className="w-6 h-[90%] bg-zinc-100 rounded-t-xs" />
-              <div className="w-6 h-[30%] bg-zinc-100 rounded-t-xs" />
-            </div>
-
-            {/* Fake Y-axis values */}
-            <div className="w-full h-full flex flex-col justify-between pb-5 pl-8 relative z-10 animate-pulse">
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs -ml-8" />
-              <div className="w-4 h-2 bg-zinc-100 rounded-xs -ml-8" />
-              <div className="w-5 h-2 bg-zinc-100 rounded-xs -ml-8" />
-            </div>
-
-            {/* Fake X-axis labels */}
-            <div className="flex justify-around pl-8 pr-4 pt-1 border-t border-zinc-100 relative z-10 animate-pulse">
-              <div className="w-8 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-8 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-8 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-8 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-8 h-2 bg-zinc-100 rounded-xs" />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (!data || data.length === 0) {
-      return (
-        <div className="border border-zinc-100 rounded-sm p-4 mt-2 text-zinc-400 font-mono text-xs bg-white text-center py-8">
-          No records collected
-        </div>
-      );
-    }
-
-    return (
-      <div className="border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 bg-white flex-1 min-w-0 w-full overflow-hidden">
-        <div className="h-[140px] w-full font-mono text-[10px]">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <BarChart key={period} id={chartId} data={data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                stroke="#a1a1aa" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false}
-                dy={5}
-              />
-              <YAxis 
-                stroke="#a1a1aa" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false}
-                tickFormatter={(tick) => tick.toLocaleString()}
-              />
-              <Tooltip 
-                formatter={(value) => [value.toLocaleString(), "Views"]} 
-                contentStyle={{ fontSize: '9px', fontFamily: 'monospace' }} 
-              />
-              <Bar dataKey="value" radius={[3, 3, 0, 0]}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={shades[index % shades.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  // Render Horizontal Bar Chart for Visited Pages (handles long path labels perfectly)
-  const renderPagesChart = () => {
-    if (showSkeleton) {
-      return (
-        <div className="w-full border border-zinc-100 rounded-sm p-4 mt-2 bg-white">
-          <div className="h-[320px] w-full flex font-mono text-[9px] relative overflow-hidden p-2">
-            {/* Grid lines (vertical) */}
-            <div className="absolute inset-0 flex justify-between px-2 pl-36 pb-6 pointer-events-none">
-              <div className="border-r border-zinc-50 h-full" />
-              <div className="border-r border-zinc-50 h-full" />
-              <div className="border-r border-zinc-50 h-full" />
-              <div className="border-r border-zinc-50 h-full" />
-            </div>
-            
-            <div className="w-full h-full flex flex-col justify-between pb-6 relative z-10 animate-pulse">
-              {[
-                { nameW: "w-20", barW: "w-[80%]" },
-                { nameW: "w-28", barW: "w-[65%]" },
-                { nameW: "w-16", barW: "w-[50%]" },
-                { nameW: "w-24", barW: "w-[40%]" },
-                { nameW: "w-32", barW: "w-[30%]" },
-                { nameW: "w-12", barW: "w-[25%]" },
-                { nameW: "w-20", barW: "w-[15%]" }
-              ].map((row, idx) => (
-                <div key={idx} className="flex items-center gap-4 w-full h-6">
-                  {/* Fake Y-Axis label */}
-                  <div className={`h-2.5 bg-zinc-100 rounded-xs shrink-0 ${row.nameW}`} />
-                  {/* Bar */}
-                  <div className="flex-1 h-3 bg-zinc-100/60 rounded-r-xs flex items-center">
-                    <div className={`h-3 bg-zinc-100 rounded-r-xs ${row.barW}`} />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Fake X-Axis labels at the bottom */}
-            <div className="absolute bottom-0 left-36 right-2 flex justify-between border-t border-zinc-100 pt-1.5 animate-pulse">
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    const data = analyticsData?.breakdowns?.pages || [];
-    if (data.length === 0) {
-      return (
-        <div className="border border-zinc-100 rounded-sm p-4 mt-2 text-zinc-400 font-mono text-xs bg-white text-center py-8">
-          No page views recorded
-        </div>
-      );
-    }
-
-    // Set height dynamically: 26px per page, minimum 300px
-    const chartHeight = Math.max(300, data.length * 26);
-
-    return (
-      <div className="w-full border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 bg-white max-h-[450px] overflow-y-auto pr-2 min-w-0 overflow-hidden">
-        <div style={{ height: `${chartHeight}px` }} className="w-full font-mono text-[10px]">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <BarChart 
-              key={period}
-              data={data} 
-              layout="vertical" 
-              margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" horizontal={false} />
-              <XAxis 
-                type="number" 
-                stroke="#a1a1aa" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false}
-              />
-              <YAxis 
-                type="category" 
-                dataKey="name" 
-                stroke="#71717a" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false}
-                width={130}
-              />
-              <Tooltip 
-                formatter={(value) => [value.toLocaleString(), "Views"]} 
-                contentStyle={{ fontSize: '9px', fontFamily: 'monospace' }} 
-              />
-              <Bar dataKey="count" radius={[0, 3, 3, 0]}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={shades[index % shades.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  // Render Horizontal Bar Chart for Full Referrer URLs
-  const renderReferrersFullChart = () => {
-    if (showSkeleton) {
-      return (
-        <div className="w-full border border-zinc-100 rounded-sm p-4 mt-2 bg-white">
-          <div className="h-[320px] w-full flex font-mono text-[9px] relative overflow-hidden p-2">
-            {/* Grid lines (vertical) */}
-            <div className="absolute inset-0 flex justify-between px-2 pl-36 pb-6 pointer-events-none">
-              <div className="border-r border-zinc-50 h-full" />
-              <div className="border-r border-zinc-50 h-full" />
-              <div className="border-r border-zinc-50 h-full" />
-              <div className="border-r border-zinc-50 h-full" />
-            </div>
-            
-            <div className="w-full h-full flex flex-col justify-between pb-6 relative z-10 animate-pulse">
-              {[
-                { nameW: "w-20", barW: "w-[80%]" },
-                { nameW: "w-28", barW: "w-[65%]" },
-                { nameW: "w-16", barW: "w-[50%]" },
-                { nameW: "w-24", barW: "w-[40%]" },
-                { nameW: "w-32", barW: "w-[30%]" },
-                { nameW: "w-12", barW: "w-[25%]" },
-                { nameW: "w-20", barW: "w-[15%]" }
-              ].map((row, idx) => (
-                <div key={idx} className="flex items-center gap-4 w-full h-6">
-                  {/* Fake Y-Axis label */}
-                  <div className={`h-2.5 bg-zinc-100 rounded-xs shrink-0 ${row.nameW}`} />
-                  {/* Bar */}
-                  <div className="flex-1 h-3 bg-zinc-100/60 rounded-r-xs flex items-center">
-                    <div className={`h-3 bg-zinc-100 rounded-r-xs ${row.barW}`} />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Fake X-Axis labels at the bottom */}
-            <div className="absolute bottom-0 left-36 right-2 flex justify-between border-t border-zinc-100 pt-1.5 animate-pulse">
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    const data = analyticsData?.breakdowns?.referrersFull || [];
-    if (data.length === 0) {
-      return (
-        <div className="border border-zinc-100 rounded-sm p-4 mt-2 text-zinc-400 font-mono text-xs bg-white text-center py-8">
-          No referrer URLs recorded
-        </div>
-      );
-    }
-
-    // Set height dynamically: 26px per item, minimum 300px
-    const chartHeight = Math.max(300, data.length * 26);
-
-    return (
-      <div className="w-full border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 bg-white max-h-[450px] overflow-y-auto pr-2 min-w-0 overflow-hidden">
-        <div style={{ height: `${chartHeight}px` }} className="w-full font-mono text-[10px]">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <BarChart 
-              key={period}
-              data={data} 
-              layout="vertical" 
-              margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" horizontal={false} />
-              <XAxis 
-                type="number" 
-                stroke="#a1a1aa" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false}
-              />
-              <YAxis 
-                type="category" 
-                dataKey="name" 
-                stroke="#71717a" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false}
-                width={150}
-              />
-              <Tooltip 
-                formatter={(value) => [value.toLocaleString(), "Views"]} 
-                contentStyle={{ fontSize: '9px', fontFamily: 'monospace' }} 
-              />
-              <Bar dataKey="count" radius={[0, 3, 3, 0]}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={shades[index % shades.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  // Render Recharts User Retention Graph
-  const renderRetentionGraph = () => {
-    if (showSkeleton) {
-      return (
-        <div className="w-full border border-zinc-100 rounded-sm p-4 mt-2 bg-white">
-          <div className="h-[200px] w-full flex flex-col justify-between font-mono text-[9px] relative overflow-hidden">
-            {/* Grid lines */}
-            <div className="absolute inset-0 flex flex-col justify-between py-2 pointer-events-none">
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-              <div className="border-b border-zinc-50 w-full" />
-            </div>
-            
-            {/* SVG area/line skeleton */}
-            <div className="absolute inset-0 flex items-end pl-8 pr-4 pb-6">
-              <svg className="w-full h-full text-zinc-100/70" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path
-                  d="M 0 10 Q 25 30 50 60 T 100 80 L 100 100 L 0 100 Z"
-                  fill="currentColor"
-                  className="animate-pulse"
-                />
-                <path
-                  d="M 0 10 Q 25 30 50 60 T 100 80"
-                  fill="none"
-                  stroke="#e4e4e7"
-                  strokeWidth="2"
-                  className="animate-pulse"
-                />
-              </svg>
-            </div>
-            
-            {/* Axes placeholders */}
-            <div className="w-full h-full flex flex-col justify-between pb-6 pl-8 relative z-10">
-              <div className="flex justify-between w-full">
-                <div className="w-8 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-              <div className="flex justify-between w-full">
-                <div className="w-6 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-              <div className="flex justify-between w-full">
-                <div className="w-7 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-              <div className="flex justify-between w-full">
-                <div className="w-4 h-2 bg-zinc-100 animate-pulse rounded-xs -ml-8" />
-              </div>
-            </div>
-            
-            {/* Fake X-axis labels */}
-            <div className="flex justify-between pl-8 pr-4 pt-2 border-t border-zinc-100 relative z-10 animate-pulse">
-              <div className="w-8 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-8 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-8 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-8 h-2.5 bg-zinc-100 rounded-xs" />
-              <div className="w-8 h-2.5 bg-zinc-100 rounded-xs" />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    const data = analyticsData?.retention || [];
-    if (data.length === 0) {
-      return (
-        <div className="w-full border border-zinc-100 rounded-sm p-4 mt-2 bg-white text-center py-8 font-mono text-xs text-zinc-400">
-          No active users currently (No retention data)
-        </div>
-      );
-    }
-
-    const CustomTooltip = ({ active, payload }) => {
-      if (active && payload && payload.length) {
-        const dataPoint = payload[0].payload;
-        return (
-          <div className="bg-white border border-zinc-150 p-2 font-mono text-[10px] text-zinc-800 shadow-xs">
-            <p className="font-bold text-zinc-950">Duration: &gt;= {dataPoint.duration}</p>
-            <p className="mt-1">Active Users: {dataPoint.users.toLocaleString()}</p>
-            <p>Retention Rate: {dataPoint.percentage}%</p>
-          </div>
-        );
-      }
-      return null;
-    };
-
-    return (
-      <div className="w-full border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 bg-white min-w-0 overflow-hidden">
-        <div className="h-[180px] sm:h-[200px] w-full">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <AreaChart key={period} data={data} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
-              <defs>
-                <linearGradient id="retentionColor" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
-              <XAxis 
-                dataKey="duration" 
-                stroke="#a1a1aa" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false} 
-                dy={10}
-              />
-              <YAxis 
-                stroke="#a1a1aa" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false}
-                tickFormatter={(tick) => `${tick}%`}
-                dx={-5}
-                domain={[0, 100]}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="percentage" 
-                stroke="#8b5cf6" 
-                strokeWidth={1.5} 
-                fillOpacity={1} 
-                fill="url(#retentionColor)" 
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  // Render Horizontal Bar Chart for Active Session Cities
-  const renderLiveCitiesChart = () => {
-    if (showSkeleton) {
-      return (
-        <div className="w-full border border-zinc-100 rounded-sm p-4 mt-2 bg-white">
-          <div className="h-[200px] w-full flex font-mono text-[9px] relative overflow-hidden p-2">
-            {/* Grid lines (vertical) */}
-            <div className="absolute inset-0 flex justify-between px-2 pl-28 pb-6 pointer-events-none">
-              <div className="border-r border-zinc-50 h-full" />
-              <div className="border-r border-zinc-50 h-full" />
-              <div className="border-r border-zinc-50 h-full" />
-              <div className="border-r border-zinc-50 h-full" />
-            </div>
-            
-            <div className="w-full h-full flex flex-col justify-between pb-6 relative z-10 animate-pulse">
-              {[
-                { nameW: "w-16", barW: "w-[75%]" },
-                { nameW: "w-20", barW: "w-[60%]" },
-                { nameW: "w-12", barW: "w-[45%]" },
-                { nameW: "w-24", barW: "w-[30%]" },
-                { nameW: "w-16", barW: "w-[15%]" }
-              ].map((row, idx) => (
-                <div key={idx} className="flex items-center gap-4 w-full h-6">
-                  {/* Fake Y-Axis label */}
-                  <div className={`h-2.5 bg-zinc-100 rounded-xs shrink-0 ${row.nameW}`} />
-                  {/* Bar */}
-                  <div className="flex-1 h-3 bg-zinc-100/60 rounded-r-xs flex items-center">
-                    <div className={`h-3 bg-zinc-100 rounded-r-xs ${row.barW}`} />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Fake X-Axis labels at the bottom */}
-            <div className="absolute bottom-0 left-28 right-2 flex justify-between border-t border-zinc-100 pt-1.5 animate-pulse">
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-              <div className="w-6 h-2 bg-zinc-100 rounded-xs" />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    const data = analyticsData?.liveCities || [];
-    if (data.length === 0) {
-      return (
-        <div className="border border-zinc-100 rounded-sm p-4 mt-2 text-zinc-400 font-mono text-xs bg-white text-center py-8">
-          No live visitors in any cities currently
-        </div>
-      );
-    }
-
-    // Set height dynamically: 26px per item, minimum 200px
-    const chartHeight = Math.max(200, data.length * 26);
-
-    return (
-      <div className="w-full border border-zinc-100 rounded-sm p-3 sm:p-4 mt-2 bg-white max-h-[300px] overflow-y-auto pr-2 min-w-0 overflow-hidden">
-        <div style={{ height: `${chartHeight}px` }} className="w-full font-mono text-[10px]">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <BarChart 
-              key={period}
-              data={data} 
-              layout="vertical" 
-              margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" horizontal={false} />
-              <XAxis 
-                type="number" 
-                stroke="#a1a1aa" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <YAxis 
-                type="category" 
-                dataKey="name" 
-                stroke="#71717a" 
-                fontSize={9} 
-                tickLine={false} 
-                axisLine={false}
-                width={100}
-              />
-              <Tooltip 
-                formatter={(value) => [value.toLocaleString(), "Active Sessions"]} 
-                contentStyle={{ fontSize: '9px', fontFamily: 'monospace' }} 
-              />
-              <Bar dataKey="count" radius={[0, 3, 3, 0]}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={shades[index % shades.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  // Prepare Chart Data
-  const countryData = (analyticsData?.breakdowns?.countries || []).map((c) => ({
-    name: c.name,
-    value: c.count
-  }));
-
-  const cityData = (analyticsData?.breakdowns?.cities || []).map((c) => ({
-    name: c.name,
-    value: c.count
-  }));
-
-  const referrerData = (analyticsData?.breakdowns?.referrers || []).map((r) => ({
-    name: r.name,
-    value: r.count
-  }));
-
-  const referrerFullData = (analyticsData?.breakdowns?.referrersFull || []).map((r) => ({
-    name: r.name,
-    value: r.count
-  }));
-
-  const deviceData = (analyticsData?.breakdowns?.devices || []).map((d) => ({
-    name: d.name,
-    value: d.count
-  }));
-
-  const osData = (analyticsData?.breakdowns?.os || []).map((o) => ({
-    name: o.name,
-    value: o.count
-  }));
-
-  // Resolve State Data mapping city names to regions
-  const stateData = (() => {
-    const cityToState = {
-      "Delhi": "Delhi",
-      "Mumbai": "Maharashtra",
-      "Patna": "Bihar",
-      "Bangalore": "Karnataka",
-      "Pune": "Maharashtra",
-      "Kolkata": "West Bengal",
-      "Hyderabad": "Telangana",
-      "Chennai": "Tamil Nadu",
-      "New York": "New York",
-      "London": "England",
-      "Toronto": "Ontario",
-      "Sydney": "New South Wales"
-    };
-    const stateMap = {};
-    (analyticsData?.breakdowns?.cities || []).forEach((c) => {
-      const stateName = cityToState[c.name] || "Other";
-      stateMap[stateName] = (stateMap[stateName] || 0) + c.count;
+      return matchesSearch && matchesType;
     });
-    return Object.entries(stateMap)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  })();
+  }, [dbData, searchTerm, selectedTypeFilter]);
+
+  // Export CSV handler
+  const handleExportCSV = () => {
+    const viewsList = dbData?.views || [];
+    const headers = ['Doc ID', 'Page Type', 'Path', 'Title / Identifier', 'View Count', 'Last Viewed At'];
+    const rows = viewsList.map((v) => [
+      `"${v._id}"`,
+      `"${v.type || 'page'}"`,
+      `"${v.path || ''}"`,
+      `"${(v.title || v.identifier || '').replace(/"/g, '""')}"`,
+      v.count || v.views || 0,
+      `"${v.lastViewedAt ? new Date(v.lastViewedAt).toISOString() : ''}"`,
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `aesthetxways_traffic_analytics_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Download Report handler
+  const handleDownloadReport = () => {
+    window.print();
+  };
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 w-full overflow-x-hidden">
-        <div className="max-w-5xl mx-auto pt-12 lg:pt-0">
-          
-          <div className="flex flex-col gap-8">
-            
-            {/* Header & Main Minimalist Metrics */}
-            <div className="border-b border-zinc-100 pb-5">
-              <div className="flex items-center justify-between">
-                <h1 className="text-base font-bold text-zinc-900 font-sans">Analytics</h1>
-                
-                {/* Simple Period Filter */}
-                {/* <div className="flex gap-4">
-                  {['24h', '7d', '30d'].map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setPeriod(p)}
-                      className={`text-xs font-medium transition-all ${
-                        period === p 
-                          ? "text-zinc-950 underline underline-offset-4 font-bold" 
-                          : "text-zinc-400 hover:text-zinc-600"
-                      }`}
-                    >
-                      {p.toUpperCase()}
-                    </button>
-                  ))}
-                </div> */}
-              </div>
-
-              {/* Minimalist Stats Row */}
-              <div className="flex flex-wrap gap-x-8 gap-y-2 mt-4 text-xs text-zinc-500 font-mono">
-                <div>
-                  Views: {showSkeleton ? (
-                    <span className="inline-block w-12 h-3 bg-zinc-100 animate-pulse rounded-xs align-middle" />
-                  ) : (
-                    <span className="text-zinc-950 font-bold">{analyticsData?.metrics?.totalViews?.toLocaleString()}</span>
-                  )}
-                </div>
-                <div>
-                  Unique Visitors: {showSkeleton ? (
-                    <span className="inline-block w-12 h-3 bg-zinc-100 animate-pulse rounded-xs align-middle" />
-                  ) : (
-                    <span className="text-zinc-950 font-bold">{analyticsData?.metrics?.uniqueUsers?.toLocaleString()}</span>
-                  )}
-                </div>
-                {/* <div>
-                  Conversion: {showSkeleton ? (
-                    <span className="inline-block w-10 h-3 bg-zinc-100 animate-pulse rounded-xs align-middle" />
-                  ) : (
-                    <span className="text-zinc-950 font-bold">{analyticsData?.metrics?.conversionRate || "0.0"}%</span>
-                  )}
-                </div> */}
-              </div>
-            </div>
-
-            {/* Line Funnel Conversion Graph */}
-            <div>
-              <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Funnel Conversion Graph</h2>
-              {renderFunnelGraph()}
-            </div>
-
-            {/* User Retention Curve */}
-            <div>
-              <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">User Retention Over Time</h2>
-              {renderRetentionGraph()}
-            </div>
-
-            {/* Hourly Traffic Graph */}
-            <div>
-              <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Hourly Traffic Trend</h2>
-              {renderHourlyGraph()}
-            </div>
-
-            {/* Country Donut Chart */}
-            <div>
-              <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Country Distribution</h2>
-              {renderDonutChart(countryData, "countries-donut")}
-            </div>
-
-            {/* Regional Donut Charts (State & City) */}
-            <div>
-              <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Regional Distribution</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <span className="text-[9px] text-zinc-400 font-mono block mb-1">State Share</span>
-                  {renderDonutChart(stateData, "states-donut")}
-                </div>
-                <div>
-                  <span className="text-[9px] text-zinc-400 font-mono block mb-1">City Share</span>
-                  {renderDonutChart(cityData, "cities-donut")}
-                </div>
-              </div>
-            </div>
-
-            {/* Traffic Sources Bar Chart */}
-            <div>
-              <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Traffic Sources</h2>
-              {renderBarChart(referrerData, "referrers-bar")}
-            </div>
-
-            {/* Exact Referrer URLs Horizontal Bar Chart */}
-            <div>
-              <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Exact Referrer URLs</h2>
-              {renderReferrersFullChart()}
-            </div>
-
-            {/* Device Type & OS Bar Charts */}
-            <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Device Distribution</h2>
-                  {renderBarChart(deviceData, "devices-bar")}
-                </div>
-                <div>
-                  <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Operating Systems</h2>
-                  {renderBarChart(osData, "os-bar")}
-                </div>
-              </div>
-            </div>
-
-            {/* Active Session Cities */}
-            <div>
-              <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Active Session Cities</h2>
-              {renderLiveCitiesChart()}
-            </div>
-
-            {/* Visited Pages Bar Chart */}
-            <div>
-              <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Most Visited Pages</h2>
-              {renderPagesChart()}
-            </div>
-
+    <div className="w-full min-h-screen bg-[#f3f4f7] px-4 py-6 sm:px-8 sm:py-8 font-sans select-none">
+        {/* ========================================================= */}
+        {/* TOP BAR / DASHBOARD HEADER ROW                            */}
+        {/* ========================================================= */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-7">
+          {/* Dashboard Title */}
+          <div>
+            <h1 className="text-[28px] sm:text-[34px] font-semibold text-[#111111] tracking-tight">
+              Page Views & Traffic Analytics
+            </h1>
+            <p className="text-[13px] text-neutral-500 mt-0.5">
+              Real-time customer engagement and store traffic tracking from MongoDB
+            </p>
           </div>
-          
+
+          {/* Search Pill and Action Buttons */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Pill Search Input */}
+            <div className="relative w-full sm:w-[280px] md:w-[320px]">
+              <Search className="w-4 h-4 text-neutral-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search page or product..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-[#f3f4f6] text-[14px] text-[#111111] placeholder-neutral-400 pl-10 pr-4 py-2 rounded-full border border-neutral-200/50 outline-none focus:bg-white focus:border-neutral-300 transition-all font-normal"
+              />
+            </div>
+
+            {/* Export CSV Pill Button */}
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white border border-[#111111] text-[#111111] text-[13.5px] font-medium hover:bg-neutral-50 transition-colors shadow-xs active:scale-[0.98] cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
+            </button>
+
+            {/* Download Report Pill Button */}
+            <button
+              type="button"
+              onClick={handleDownloadReport}
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white border border-[#111111] text-[#111111] text-[13.5px] font-medium hover:bg-neutral-50 transition-colors shadow-xs active:scale-[0.98] cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download Report</span>
+            </button>
+          </div>
         </div>
-      </main>
-    </div>
+
+        {/* ========================================================= */}
+        {/* TOP SECTION: 3 COLUMNS GRID                               */}
+        {/* ========================================================= */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* ------------------------------------------------------- */}
+          {/* COLUMN 1 (LEFT, ~25%): 2 STACKED CARDS                  */}
+          {/* ------------------------------------------------------- */}
+          <div className="lg:col-span-3 flex flex-col gap-6 justify-between">
+            {/* Card 1: Total Store Views */}
+            <div className="bg-white rounded-[26px] p-6 border border-neutral-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between flex-1">
+              <div>
+                <div className="flex items-start justify-between">
+                  <p className="text-[14px] text-neutral-500 font-normal">
+                    Total Page Views
+                  </p>
+                  <div className="w-9 h-9 rounded-xl border border-neutral-200/80 flex items-center justify-center text-neutral-700 shrink-0">
+                    <Eye className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 mt-3">
+                  <span className="text-[34px] sm:text-[38px] font-bold text-[#111111] tracking-tight leading-none">
+                    {stats.totalViews.toLocaleString('en-IN')}
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#15803d] text-[11px] font-semibold">
+                    Tracked
+                    <Sparkles className="w-2.5 h-2.5" />
+                  </span>
+                </div>
+                <p className="text-[11.5px] text-neutral-400 mt-2">
+                  Across {stats.uniquePagesCount} tracked routes
+                </p>
+              </div>
+
+              <div className="pt-5 mt-6 border-t border-neutral-100">
+                <a
+                  href="#page-audit-table"
+                  className="flex items-center justify-between text-[14px] font-medium text-neutral-800 hover:text-black transition-colors group cursor-pointer"
+                >
+                  <span>View All Pages</span>
+                  <ArrowRight className="w-4 h-4 text-neutral-700 group-hover:translate-x-1 transition-transform" />
+                </a>
+              </div>
+            </div>
+
+            {/* Card 2: Product Views */}
+            <div className="bg-white rounded-[26px] p-6 border border-neutral-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between flex-1">
+              <div>
+                <div className="flex items-start justify-between">
+                  <p className="text-[14px] text-neutral-500 font-normal">
+                    Product Catalog Views
+                  </p>
+                  <div className="w-9 h-9 rounded-xl border border-neutral-200/80 flex items-center justify-center text-neutral-700 shrink-0">
+                    <Package className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 mt-3">
+                  <span className="text-[34px] sm:text-[38px] font-bold text-[#111111] tracking-tight leading-none">
+                    {stats.productViewsCount.toLocaleString('en-IN')}
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#15803d] text-[11px] font-semibold">
+                    {stats.productViewsPercentage}%
+                    <TrendingUp className="w-2.5 h-2.5" />
+                  </span>
+                </div>
+                <p className="text-[11.5px] text-neutral-400 mt-2">
+                  High-intent product discovery
+                </p>
+              </div>
+
+              <div className="pt-5 mt-6 border-t border-neutral-100">
+                <a
+                  href="#top-products-table"
+                  className="flex items-center justify-between text-[14px] font-medium text-neutral-800 hover:text-black transition-colors group cursor-pointer"
+                >
+                  <span>Top Viewed Products</span>
+                  <ArrowRight className="w-4 h-4 text-neutral-700 group-hover:translate-x-1 transition-transform" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* ------------------------------------------------------- */}
+          {/* COLUMN 2 (CENTER, ~42%): VIEWS ACTIVITY BAR CHART       */}
+          {/* ------------------------------------------------------- */}
+          <div className="lg:col-span-5 bg-white rounded-[26px] p-6 sm:p-7 border border-neutral-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+            <div>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[14px] text-neutral-500 font-normal">
+                    Weekly Traffic & Visitor Pace
+                  </p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-[36px] sm:text-[40px] font-bold text-[#111111] tracking-tight leading-none">
+                      {stats.totalViews.toLocaleString('en-IN')} Views
+                    </span>
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#15803d] text-[11px] font-semibold">
+                      Weekly
+                    </span>
+                  </div>
+                </div>
+
+                <div className="w-8 h-8 rounded-full border border-neutral-200/80 flex items-center justify-center text-neutral-400">
+                  <Clock className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Legend: Total Views (Black) vs Product Views (Striped) */}
+              <div className="flex items-center justify-end gap-5 mt-4">
+                <div className="flex items-center gap-2 text-[12px] text-neutral-700">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#111111]" />
+                  <span>Product Views</span>
+                </div>
+                <div className="flex items-center gap-2 text-[12px] text-neutral-500">
+                  <span className="w-2.5 h-2.5 rounded-full bg-neutral-300" />
+                  <span>Total Views</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Hatched Bar Chart SVG */}
+            <div className="w-full mt-4 h-[240px]">
+              <svg
+                viewBox="0 0 460 220"
+                className="w-full h-full overflow-visible"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  {/* Diagonal hatched stripe pattern for Total Views */}
+                  <pattern
+                    id="analyticsDiagonalHatch"
+                    width="6"
+                    height="6"
+                    patternTransform="rotate(45 0 0)"
+                    patternUnits="userSpaceOnUse"
+                  >
+                    <line
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="6"
+                      stroke="#d4d4d8"
+                      strokeWidth="2.2"
+                    />
+                  </pattern>
+                </defs>
+
+                {/* Y-Axis Reference lines & numbers */}
+                {yAxisLines.map((row) => (
+                  <g key={row.y}>
+                    <text
+                      x="32"
+                      y={row.y + 4}
+                      textAnchor="end"
+                      className="text-[10px] fill-neutral-400 font-normal"
+                    >
+                      {row.val}
+                    </text>
+                    <line
+                      x1="45"
+                      y1={row.y}
+                      x2="455"
+                      y2={row.y}
+                      stroke="#f3f4f6"
+                      strokeDasharray="2 2"
+                    />
+                  </g>
+                ))}
+
+                {/* Bars for Days */}
+                {dailyBars.map((b) => {
+                  const baseY = 175;
+                  const revY = baseY - b.prodHeight;
+                  const totY = revY - b.totHeight;
+
+                  return (
+                    <g key={b.day}>
+                      {/* Top Striped/Hatched Bar */}
+                      {b.totHeight > 0 && (
+                        <rect
+                          x={b.x - 17}
+                          y={totY}
+                          width="34"
+                          height={b.totHeight}
+                          rx="14"
+                          fill="url(#analyticsDiagonalHatch)"
+                          stroke="#e5e7eb"
+                          strokeWidth="0.5"
+                        />
+                      )}
+
+                      {/* Bottom Solid Black Bar */}
+                      <rect
+                        x={b.x - 17}
+                        y={revY}
+                        width="34"
+                        height={b.prodHeight}
+                        rx={b.prodHeight > 14 ? '14' : '3'}
+                        fill="#111111"
+                      />
+
+                      {/* Number above solid black bar */}
+                      <text
+                        x={b.x}
+                        y={totY - 5}
+                        textAnchor="middle"
+                        className="text-[9.5px] font-semibold fill-neutral-600"
+                      >
+                        {b.val}
+                      </text>
+
+                      {/* Day pill button on X-axis */}
+                      <rect
+                        x={b.x - 18}
+                        y={186}
+                        width="36"
+                        height="18"
+                        rx="9"
+                        fill="#111111"
+                      />
+                      <text
+                        x={b.x}
+                        y={199}
+                        textAnchor="middle"
+                        className="text-[9.5px] fill-white font-medium"
+                      >
+                        {b.day}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          </div>
+
+          {/* ------------------------------------------------------- */}
+          {/* COLUMN 3 (RIGHT, ~33%): TRAFFIC DISTRIBUTION DONUT      */}
+          {/* ------------------------------------------------------- */}
+          <div className="lg:col-span-4 bg-white rounded-[26px] p-6 sm:p-7 border border-neutral-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+            {/* Header: Title and Distribution Badge */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-[17px] sm:text-[18px] font-semibold text-[#111111] tracking-tight">
+                Traffic Distribution
+              </h3>
+              <div className="px-3 py-1 rounded-full border border-neutral-200 text-[12px] font-medium text-neutral-700 bg-neutral-50/70 select-none">
+                Real-time
+              </div>
+            </div>
+
+            {/* Donut Chart Visual */}
+            <div className="relative w-full my-4 flex items-center justify-center">
+              <div className="relative w-44 h-44">
+                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="38"
+                    fill="transparent"
+                    stroke="#f3f4f6"
+                    strokeWidth="14"
+                  />
+                  {/* Concentric / Arc Slices */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="38"
+                    fill="transparent"
+                    stroke="#111111"
+                    strokeWidth="14"
+                    strokeDasharray={`${(distribution[0]?.percent || 50) * 2.38} 238`}
+                    strokeDashoffset="0"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="38"
+                    fill="transparent"
+                    stroke="#4b5563"
+                    strokeWidth="14"
+                    strokeDasharray={`${(distribution[1]?.percent || 25) * 2.38} 238`}
+                    strokeDashoffset={`-${(distribution[0]?.percent || 50) * 2.38}`}
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="38"
+                    fill="transparent"
+                    stroke="#9ca3af"
+                    strokeWidth="14"
+                    strokeDasharray={`${(distribution[2]?.percent || 15) * 2.38} 238`}
+                    strokeDashoffset={`-${((distribution[0]?.percent || 50) + (distribution[1]?.percent || 25)) * 2.38}`}
+                  />
+                </svg>
+
+                {/* Donut Center */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                  <span className="text-[10.5px] uppercase font-bold text-neutral-400 tracking-wider">
+                    Total
+                  </span>
+                  <span className="text-[22px] font-bold text-[#111111] leading-tight">
+                    {stats.totalViews}
+                  </span>
+                  <span className="text-[10px] text-neutral-500">Hits</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Donut Legend */}
+            <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-neutral-100 text-[12px]">
+              {distribution.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-1.5 rounded-lg bg-neutral-50/60">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                    <span className="text-neutral-700 font-medium truncate">{item.shortName}</span>
+                  </div>
+                  <span className="font-bold text-[#111111] shrink-0 ml-1">{item.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================= */}
+        {/* BOTTOM SECTION: 2 DATA TABLES                             */}
+        {/* ========================================================= */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-8 items-start">
+          {/* ------------------------------------------------------- */}
+          {/* TABLE 1 (LEFT, 7 COLS): TOP VIEWED PRODUCTS TABLE       */}
+          {/* ------------------------------------------------------- */}
+          <div
+            id="top-products-table"
+            className="lg:col-span-7 bg-white rounded-[26px] p-6 sm:p-7 border border-neutral-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-[18px] sm:text-[20px] font-semibold text-[#111111] tracking-tight">
+                  Top Viewed Products
+                </h3>
+                <p className="text-[12.5px] text-neutral-500 mt-0.5">
+                  Ranked by customer views and impressions
+                </p>
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                Most Viewed
+              </span>
+            </div>
+
+            {topProducts.length === 0 ? (
+              <div className="p-8 text-center text-neutral-400 text-[13.5px]">
+                No product views recorded yet. Visit any product on the store to populate!
+              </div>
+            ) : (
+              <div className="divide-y divide-neutral-100">
+                {topProducts.slice(0, 7).map((prod, pIdx) => (
+                  <div
+                    key={prod.id || pIdx}
+                    className="py-3.5 flex items-center justify-between gap-3 hover:bg-neutral-50/70 rounded-xl px-2.5 transition-colors"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {/* Rank Number */}
+                      <span className="text-[13px] font-bold text-neutral-400 w-4 text-center">
+                        {pIdx + 1}
+                      </span>
+
+                      {/* Product Image */}
+                      <a
+                        href={getStorefrontUrl(`/product/${prod.slug}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-12 h-12 rounded-xl bg-neutral-100 overflow-hidden border border-neutral-200/60 shrink-0 flex items-center justify-center hover:opacity-85 transition-opacity"
+                        title={`View ${prod.name} on aesthetxways.com`}
+                      >
+                        <img
+                          src={prod.image}
+                          alt={prod.name}
+                          className="w-full h-full object-contain mix-blend-multiply"
+                        />
+                      </a>
+
+                      {/* Product Name & Category */}
+                      <div className="min-w-0">
+                        <a
+                          href={getStorefrontUrl(`/product/${prod.slug}`)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:underline block"
+                          title={`View ${prod.name} on aesthetxways.com`}
+                        >
+                          <p className="text-[13.5px] font-semibold text-[#111111] truncate hover:text-black">
+                            {prod.name}
+                          </p>
+                        </a>
+                        <p className="text-[11.5px] text-neutral-400">
+                          {prod.category} • ₹{prod.priceNumber.toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Views Count Pill */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-neutral-100 text-[#111111] font-bold text-[12.5px]">
+                          <Eye className="w-3.5 h-3.5 text-neutral-600" />
+                          {prod.views}
+                        </span>
+                        <span className="block text-[10px] text-neutral-400 mt-0.5">
+                          {prod.shareOfTraffic}% of traffic
+                        </span>
+                      </div>
+
+                      <a
+                        href={getStorefrontUrl(`/product/${prod.slug}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 rounded-lg border border-neutral-200 text-neutral-500 hover:text-black hover:border-black transition-colors"
+                        title="View Product Page on aesthetxways.com"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ------------------------------------------------------- */}
+          {/* TABLE 2 (RIGHT, 5 COLS): ALL TRACKED PAGES AUDIT        */}
+          {/* ------------------------------------------------------- */}
+          <div
+            id="page-audit-table"
+            className="lg:col-span-5 bg-white rounded-[26px] p-6 sm:p-7 border border-neutral-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-[18px] sm:text-[20px] font-semibold text-[#111111] tracking-tight">
+                  All Tracked Routes
+                </h3>
+                <p className="text-[12.5px] text-neutral-500 mt-0.5">
+                  {filteredPages.length} active pages recorded
+                </p>
+              </div>
+
+              {/* Type Filter Pills */}
+              <div className="flex items-center gap-1">
+                {['ALL', 'product', 'home', 'checkout'].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setSelectedTypeFilter(t)}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase transition-colors cursor-pointer ${
+                      selectedTypeFilter === t
+                        ? 'bg-[#111111] text-white'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredPages.length === 0 ? (
+              <div className="p-8 text-center text-neutral-400 text-[13.5px]">
+                No routes match your search.
+              </div>
+            ) : (
+              <div className="divide-y divide-neutral-100 max-h-[460px] overflow-y-auto pr-1">
+                {filteredPages.map((page, idx) => (
+                  <div key={page._id || idx} className="py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex flex-col">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase ${
+                          page.type === 'home'
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : page.type === 'product'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : page.path?.includes('checkout')
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-neutral-100 text-neutral-700'
+                        }`}>
+                          {page.type || 'page'}
+                        </span>
+                        <a
+                          href={getStorefrontUrl(page.path)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:underline flex items-center gap-1 group/route"
+                          title={`Open ${page.path} on aesthetxways.com`}
+                        >
+                          <code className="text-[11.5px] font-mono text-neutral-800 font-semibold truncate max-w-[170px] group-hover/route:text-black">
+                            {page.path}
+                          </code>
+                          <ExternalLink className="w-2.5 h-2.5 text-neutral-400 group-hover/route:text-neutral-700 shrink-0" />
+                        </a>
+                      </div>
+                      <p className="text-[11.5px] text-neutral-400 truncate mt-0.5">
+                        {page.title || page.identifier}
+                      </p>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="font-bold text-[13px] text-[#111111]">
+                        {page.count || page.views}
+                      </span>
+                      <span className="text-[10px] text-neutral-400 block">
+                        {page.lastViewedAt
+                          ? new Date(page.lastViewedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                          : 'Recent'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
   );
 }

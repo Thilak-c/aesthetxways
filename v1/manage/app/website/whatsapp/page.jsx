@@ -22,8 +22,8 @@ import {
 import toast from "react-hot-toast";
 
 export default function WhatsAppPage() {
-  const [clientId, setClientId] = useState("8008439762");
-  const [inputClientId, setInputClientId] = useState("8008439762");
+  const [clientId, setClientId] = useState("7033769997");
+  const [inputClientId, setInputClientId] = useState("7033769997");
   const [statusData, setStatusData] = useState(null);
   
   const handleConfirmSession = () => {
@@ -374,7 +374,7 @@ export default function WhatsAppPage() {
                           type="text"
                           value={inputClientId}
                           onChange={(e) => setInputClientId(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                          placeholder="e.g. 8008439762"
+                          placeholder="e.g. 7033769997"
                           className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-slate-800 focus:outline-none rounded-2xl text-xs font-mono font-bold text-slate-800 focus:ring-0 placeholder-slate-300"
                         />
                       </div>

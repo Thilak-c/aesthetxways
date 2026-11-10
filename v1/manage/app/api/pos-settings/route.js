@@ -1,9 +1,6 @@
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "@/convex/_generated/api";
+import { getDb } from "@/lib/mongodb";
 
-const convex = new ConvexHttpClient(
-  process.env.NEXT_PUBLIC_CONVEX_URL || "https://db.aesthetxways.com"
-);
+export const dynamic = "force-dynamic";
 
 const DEFAULT_STORE_BRANCHES = {
   patna: {
@@ -28,21 +25,36 @@ const DEFAULT_STORE_BRANCHES = {
 
 export async function GET() {
   try {
-    const branchesData = await convex.query(api.siteSettings.getPosBranches, {});
-    const usersData = await convex.query(api.siteSettings.getPosUsers, {});
+    const db = await getDb();
+    const branchesDoc = await db.collection("siteSettings").findOne({ key: "posBranches" });
+    const usersDoc = await db.collection("siteSettings").findOne({ key: "posUsers" });
+
+    let branchesData = null;
+    if (branchesDoc?.value) {
+      try {
+        branchesData = typeof branchesDoc.value === "string" ? JSON.parse(branchesDoc.value) : branchesDoc.value;
+      } catch {}
+    }
+
+    let usersData = null;
+    if (usersDoc?.value) {
+      try {
+        usersData = typeof usersDoc.value === "string" ? JSON.parse(usersDoc.value) : usersDoc.value;
+      } catch {}
+    }
 
     const branches = branchesData?.branches || DEFAULT_STORE_BRANCHES;
-    const activeBranch = branchesData?.activeBranch || "gaya";
+    const activeBranch = branchesData?.activeBranch || "patna";
 
     return Response.json({
       success: true,
       branches,
       activeBranch,
       users: usersData || null,
-      updatedAt: branchesData?.updatedAt || null
+      updatedAt: branchesDoc?.updatedAt || null
     });
   } catch (err) {
-    console.error("Error fetching POS settings from Convex:", err);
+    console.error("Error fetching POS settings from MongoDB:", err);
     return Response.json(
       { success: false, error: String(err), branches: DEFAULT_STORE_BRANCHES },
       { status: 500 }
@@ -54,23 +66,44 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const { branches, activeBranch, users } = body;
+    const db = await getDb();
 
     if (branches && typeof branches === "object") {
-      await convex.mutation(api.siteSettings.savePosBranches, {
-        branchesJson: JSON.stringify(branches),
-        activeBranch: activeBranch || "gaya"
-      });
+      const branchesPayload = {
+        branches,
+        activeBranch: activeBranch || "patna",
+        updatedAt: new Date().toISOString()
+      };
+      await db.collection("siteSettings").updateOne(
+        { key: "posBranches" },
+        {
+          $set: {
+            key: "posBranches",
+            value: JSON.stringify(branchesPayload),
+            updatedAt: new Date().toISOString()
+          }
+        },
+        { upsert: true }
+      );
     }
 
     if (users && Array.isArray(users)) {
-      await convex.mutation(api.siteSettings.savePosUsers, {
-        usersJson: JSON.stringify(users)
-      });
+      await db.collection("siteSettings").updateOne(
+        { key: "posUsers" },
+        {
+          $set: {
+            key: "posUsers",
+            value: JSON.stringify(users),
+            updatedAt: new Date().toISOString()
+          }
+        },
+        { upsert: true }
+      );
     }
 
-    return Response.json({ success: true, message: "Saved to Convex database successfully" });
+    return Response.json({ success: true, message: "Saved to MongoDB successfully" });
   } catch (err) {
-    console.error("Error saving POS settings to Convex:", err);
+    console.error("Error saving POS settings to MongoDB:", err);
     return Response.json({ success: false, error: String(err) }, { status: 500 });
   }
 }

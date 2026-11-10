@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request) {
   try {
     const { clientId } = await request.json();
-    const targetClientId = clientId || '8008439762';
+    const targetClientId = clientId || '7033769997';
 
     const GATEWAY_URL = 'http://localhost:10000/disconnect';
     

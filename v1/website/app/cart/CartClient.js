@@ -240,6 +240,7 @@ export default function CartClient({ initialStep = 'bag' }) {
 
   const openAddressSheet = () => {
     if (addressSheetTimerRef.current) clearTimeout(addressSheetTimerRef.current);
+    if (address.email) setAddrEmail(address.email);
     setIsAddressSheetMounted(true);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -285,6 +286,7 @@ export default function CartClient({ initialStep = 'bag' }) {
   const [addrRoadArea, setAddrRoadArea] = useState('');
   const [addrName, setAddrName] = useState('');
   const [addrMobile, setAddrMobile] = useState('');
+  const [addrEmail, setAddrEmail] = useState('');
   const [addrFocusedField, setAddrFocusedField] = useState(null);
   const [addrErrors, setAddrErrors] = useState({ houseNo: false, roadArea: false, pincode: false });
 
@@ -336,6 +338,7 @@ export default function CartClient({ initialStep = 'bag' }) {
             setAddrRoadArea(parsed.roadArea || parsed.street || '');
             setAddrName(parsed.name || `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim() || '');
             setAddrMobile(parsed.mobile || '');
+            setAddrEmail(parsed.email || localStorage.getItem('aw_user_email') || localStorage.getItem('sonu_user_email') || '');
             setDetectedCity(parsed.city || '');
             setDetectedState(parsed.state || '');
             setDeliveryEtd(parsed.deliveryEtd || '');
@@ -477,16 +480,17 @@ export default function CartClient({ initialStep = 'bag' }) {
     }
 
     const finalName = addrName.trim() || address.name || 'Valued Customer';
-    const finalMobile = addrMobile.trim() || address.mobile || '8008439762';
+    const finalMobile = addrMobile.trim() || address.mobile || '7033769997';
+    const finalEmail = addrEmail.trim() || address.email || '';
 
     const shippingAddress = {
       firstName: finalName.split(' ')[0] || 'Valued',
       lastName: finalName.split(' ').slice(1).join(' ') || 'Customer',
       name: finalName,
       mobile: finalMobile,
-      email: address.email || 'customer@aesthetxways.com',
+      email: finalEmail,
       pincode: addrPincode.trim(),
-      city: detectedCity || address.city || 'PATNA',
+      city: detectedCity || address.city || 'Patna',
       state: detectedState || address.state || 'Bihar',
       houseNo: addrHouseNo.trim(),
       street: addrRoadArea.trim(),
@@ -502,6 +506,10 @@ export default function CartClient({ initialStep = 'bag' }) {
       localStorage.setItem('sonu_user_mobile', finalMobile);
       localStorage.setItem('aw_user_name', finalName);
       localStorage.setItem('sonu_user_name', finalName);
+      if (finalEmail) {
+        localStorage.setItem('aw_user_email', finalEmail);
+        localStorage.setItem('sonu_user_email', finalEmail);
+      }
     } catch (err) {
       console.error('Error saving address to localStorage:', err);
     }
@@ -598,19 +606,26 @@ export default function CartClient({ initialStep = 'bag' }) {
       }
 
       // 1. Create order on backend via Razorpay Orders API
+      const isPartialCod = paymentMethod === 'partial_cod';
+      const chargeAmount = isPartialCod ? 200 : grandTotal;
+
       const res = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: grandTotal,
+          amount: chargeAmount,
           items: cartItems,
           notes: {
             customerName: address.name || 'Customer',
-            customerEmail: address.email || '',
+            customerEmail: address.email || addrEmail || '',
             contact: address.mobile || '',
             address: `${address.houseNo || ''}, ${address.street || address.roadArea || ''}, ${address.city || ''} - ${address.pincode || ''}`,
             method: paymentMethod,
             shippingCharge,
+            isPartialCod,
+            advancePaid: isPartialCod ? 200 : grandTotal,
+            balanceDue: isPartialCod ? Math.max(0, grandTotal - 200) : 0,
+            orderTotal: grandTotal,
           },
         }),
       });
@@ -622,7 +637,8 @@ export default function CartClient({ initialStep = 'bag' }) {
 
       const orderId = orderData.orderId || orderData.id;
       const displayName = address.name || 'Customer';
-      const displayContact = (address.mobile || '8008439762').replace(/\D/g, '').slice(-10);
+      const displayContact = (address.mobile || '7033769997').replace(/\D/g, '').slice(-10);
+      const displayEmail = address.email || addrEmail || '';
 
       // Sequence blocks to always show full detailed payment options (exact from Sonu)
       const sequenceMap = {
@@ -630,23 +646,26 @@ export default function CartClient({ initialStep = 'bag' }) {
         netbanking: ['block.netbanking', 'block.cards', 'block.upi', 'block.wallets_emi'],
         emi: ['block.wallets_emi', 'block.cards', 'block.upi', 'block.netbanking'],
         upi: ['block.upi', 'block.cards', 'block.netbanking', 'block.wallets_emi'],
+        partial_cod: ['block.upi', 'block.cards', 'block.netbanking', 'block.wallets_emi'],
       };
       const activeSequence = sequenceMap[paymentMethod] || sequenceMap.card;
 
       // 2. Configure and open Razorpay modal with full options (exact from Sonu)
       const options = {
         key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_ToeynJ0XXfrtyp',
-        amount: orderData.amount || Math.round(grandTotal * 100),
+        amount: orderData.amount || Math.round(chargeAmount * 100),
         currency: orderData.currency || 'INR',
         name: 'AESTHETX WAYS',
-        description: `Order Payment (${totalQuantity} ${totalQuantity === 1 ? 'item' : 'items'})`,
-        image: '/logo_t.svg',
+        description: isPartialCod
+          ? `₹200 Advance for COD Order (${totalQuantity} ${totalQuantity === 1 ? 'item' : 'items'})`
+          : `Order Payment (${totalQuantity} ${totalQuantity === 1 ? 'item' : 'items'})`,
+        image: 'https://aesthetxways.com/logo.png',
         order_id: orderId,
         one_click_checkout: false,
         remember_customer: false,
         prefill: {
           name: displayName,
-          email: address.email || '',
+          email: displayEmail,
           contact: displayContact,
         },
         notes: {
@@ -694,32 +713,13 @@ export default function CartClient({ initialStep = 'bag' }) {
           },
         },
         handler: async function (response) {
-          const placedOrderId = `AW-IN-${Math.floor(100000 + Math.random() * 900000)}`;
-          const confirmedData = {
-            orderId: placedOrderId,
-            orderNumber: placedOrderId,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpayOrderId: response.razorpay_order_id,
-            razorpaySignature: response.razorpay_signature,
-            items: [...cartItems],
-            subtotal,
-            shippingFee: shippingCharge,
-            totalAmount: grandTotal,
-            address: { ...address },
-            customer: {
-              name: displayName,
-              mobile: displayContact,
-              email: address.email,
-              address: `${address.houseNo || ''}, ${address.street || address.roadArea || ''}`,
-            },
-            paymentMethod,
-            placedAt: new Date().toISOString(),
-            estimatedDelivery: address.deliveryEtd || '3-5 business days',
-          };
+          const placedOrderId = Math.floor(100000 + Math.random() * 900000).toString();
+          let confirmedOrderId = placedOrderId;
+          const userEmail = address.email || addrEmail || '';
 
           // Save confirmed order to backend
           try {
-            await fetch('/api/orders', {
+            const apiRes = await fetch('/api/orders', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -733,24 +733,64 @@ export default function CartClient({ initialStep = 'bag' }) {
                 })),
                 customerDetails: {
                   fullName: displayName,
-                  email: address.email || 'customer@aesthetxways.com',
+                  name: displayName,
+                  email: userEmail,
                   phone: displayContact,
-                  address: `${address.houseNo || ''}, ${address.street || address.roadArea || ''}`,
-                  city: address.city || 'PATNA',
-                  state: address.state || 'Maharashtra',
-                  pincode: address.pincode || '800013',
+                  mobile: displayContact,
+                  houseNo: address.houseNo || addrHouseNo || '',
+                  flatNo: address.flatNo || address.houseNo || addrHouseNo || '',
+                  street: address.street || address.roadArea || addrRoadArea || '',
+                  roadArea: address.roadArea || addrRoadArea || '',
+                  landmark: address.landmark || '',
+                  address: [address.houseNo || addrHouseNo, address.street || address.roadArea || addrRoadArea].filter(Boolean).join(', '),
+                  city: address.city || detectedCity || 'Patna',
+                  state: address.state || detectedState || 'Bihar',
+                  pincode: address.pincode || addrPincode || '800001',
                 },
                 paymentMethod,
                 orderTotal: grandTotal,
+                advancePaid: isPartialCod ? 200 : grandTotal,
+                balanceDue: isPartialCod ? Math.max(0, grandTotal - 200) : 0,
                 shippingFee: shippingCharge,
                 razorpayOrderId: response.razorpay_order_id,
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature,
               }),
             });
+
+            if (apiRes.ok) {
+              const apiJson = await apiRes.json();
+              if (apiJson.orderNumber) {
+                confirmedOrderId = String(apiJson.orderNumber);
+              }
+            }
           } catch (dbErr) {
             console.error('Order save error:', dbErr);
           }
+
+          const confirmedData = {
+            orderId: confirmedOrderId,
+            orderNumber: confirmedOrderId,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpaySignature: response.razorpay_signature,
+            items: [...cartItems],
+            subtotal,
+            shippingFee: shippingCharge,
+            totalAmount: grandTotal,
+            advancePaid: isPartialCod ? 200 : grandTotal,
+            balanceDue: isPartialCod ? Math.max(0, grandTotal - 200) : 0,
+            address: { ...address },
+            customer: {
+              name: displayName,
+              mobile: displayContact,
+              email: userEmail,
+              address: `${address.houseNo || ''}, ${address.street || address.roadArea || ''}`,
+            },
+            paymentMethod,
+            placedAt: new Date().toISOString(),
+            estimatedDelivery: address.deliveryEtd || '3-5 business days',
+          };
 
           // Save in localStorage for past orders view
           try {
@@ -832,8 +872,36 @@ export default function CartClient({ initialStep = 'bag' }) {
               <p className="text-[15px] font-bold text-[#111111] mt-0.5">{confirmedOrder.estimatedDelivery}</p>
             </div>
             <div className="text-right">
-              <p className="text-[13px] text-[#707072]">Total Paid</p>
-              <p className="text-[16px] font-bold text-[#008a00] mt-0.5">₹{confirmedOrder.totalAmount?.toLocaleString('en-IN')}</p>
+              {(() => {
+                const method = (confirmedOrder.paymentMethod || confirmedOrder.payment?.method || '').toLowerCase();
+                const isPartial = method === 'partial_cod' || method === 'cod' || (Number(confirmedOrder.advancePaid) > 0 && Number(confirmedOrder.advancePaid) < Number(confirmedOrder.totalAmount));
+                const paid = Number(confirmedOrder.advancePaid ?? 200);
+                const remaining = Number(confirmedOrder.balanceDue ?? Math.max(0, (confirmedOrder.totalAmount || 0) - paid));
+
+                if (isPartial) {
+                  return (
+                    <div className="space-y-1 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className="text-[12px] text-[#707072]">Total Paid:</span>
+                        <span className="text-[14px] font-bold text-[#008a00]">₹{paid.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className="text-[12px] text-amber-900 font-medium">Remaining:</span>
+                        <span className="text-[14px] font-bold text-amber-900">₹{remaining.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div>
+                    <p className="text-[13px] text-[#707072]">Total Paid</p>
+                    <p className="text-[16px] font-bold text-[#008a00] mt-0.5">
+                      ₹{confirmedOrder.totalAmount?.toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -1385,7 +1453,67 @@ export default function CartClient({ initialStep = 'bag' }) {
             )}
           </div>
 
-          {/* Option 2: Credit/ Debit Card */}
+          {/* Option 2: Cash on Delivery (Partial COD) */}
+          <div className="border border-[#e5e5e5] rounded-[16px] p-4 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.02)] transition-all">
+            <div
+              onClick={() => {
+                setPaymentMethod('partial_cod');
+                setSelectedPaymentAccordion(selectedPaymentAccordion === 'partial_cod' ? '' : 'partial_cod');
+              }}
+              className="flex items-center justify-between cursor-pointer select-none"
+            >
+              <div className="flex items-center gap-3.5">
+                <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-neutral-100">
+                  <svg className="w-5 h-5 text-[#111111]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p
+                      className="text-[16px] font-bold text-[#111111] leading-tight font-['Helvetica_Now_Text_Medium',sans-serif]"
+                      style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
+                    >
+                      Cash on Delivery
+                    </p>
+                    
+                  </div>
+                  <p className="text-[13px] text-[#707072] mt-0.5">
+                    Pay ₹200 advance now • Balance ₹{Math.max(0, grandTotal - 200).toLocaleString('en-IN')} on delivery
+                  </p>
+                </div>
+              </div>
+              <img
+                src={selectedPaymentAccordion === 'partial_cod' ? '/images/payments/caret-up.svg' : '/images/payments/caret-down.svg'}
+                alt=""
+                className="w-5 h-5 shrink-0"
+              />
+            </div>
+
+            {selectedPaymentAccordion === 'partial_cod' && (
+              <div className="mt-4 pt-3.5  space-y-3.5">
+              
+                <button
+                  type="button"
+                  disabled={isPlacingOrder}
+                  onClick={handlePlaceOrder}
+                  className="w-full py-4 rounded-full bg-[#111111] hover:bg-black active:scale-[0.99] text-white text-[16px] font-medium transition-all shadow-sm cursor-pointer disabled:opacity-75 flex items-center justify-center gap-2 font-['Helvetica_Now_Text_Medium',sans-serif]"
+                  style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
+                >
+                  {isPlacingOrder ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Processing Advance Payment...</span>
+                    </>
+                  ) : (
+                    `Pay ₹200 Advance to Confirm Order`
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Option 3: Credit/ Debit Card */}
           <div className="border border-[#e5e5e5] rounded-[16px] p-4 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.02)] transition-all">
             <div
               onClick={() => {
@@ -1664,15 +1792,21 @@ export default function CartClient({ initialStep = 'bag' }) {
                     className="text-[15px] sm:text-[16px] font-bold text-[#111111] font-['Helvetica_Now_Text_Medium',sans-serif]"
                     style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
                   >
-                    You Pay
+                    {paymentMethod === 'partial_cod' ? 'Total Paid (Online)' : 'You Pay'}
                   </span>
                   <span
                     className="text-[15px] sm:text-[16px] font-bold text-[#111111] font-['Helvetica_Now_Text_Medium',sans-serif]"
                     style={{ fontFamily: "'Helvetica Now Text Medium', sans-serif" }}
                   >
-                    ₹{grandTotal.toLocaleString('en-IN')}
+                    ₹{(paymentMethod === 'partial_cod' ? 200 : grandTotal).toLocaleString('en-IN')}
                   </span>
                 </div>
+                {paymentMethod === 'partial_cod' && (
+                  <div className="flex items-center justify-between text-[13px] text-amber-900 font-bold pt-1">
+                    <span>Remaining (COD)</span>
+                    <span>₹{Math.max(0, grandTotal - 200).toLocaleString('en-IN')}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2176,6 +2310,26 @@ export default function CartClient({ initialStep = 'bag' }) {
                 onFocus={() => setAddrFocusedField('mobile')}
                 onBlur={() => setAddrFocusedField(null)}
                 placeholder="10-digit mobile number"
+                className="w-full bg-transparent text-[16px] text-[#111111] font-normal outline-none p-0"
+              />
+            </div>
+
+            {/* Email Address */}
+            <div
+              className={`relative w-full h-[54px] px-4 rounded-[10px] border transition-colors cursor-text bg-white flex items-center ${
+                addrFocusedField === 'email' ? 'border-[#111111]' : 'border-[#8d8d8d]'
+              }`}
+            >
+              <span className="absolute -top-2.5 left-3 px-1.5 bg-white text-[12px] text-[#111111] font-normal leading-none z-10 select-none">
+                Email Address
+              </span>
+              <input
+                type="email"
+                value={addrEmail}
+                onChange={(e) => setAddrEmail(e.target.value)}
+                onFocus={() => setAddrFocusedField('email')}
+                onBlur={() => setAddrFocusedField(null)}
+                placeholder="your.email@gmail.com"
                 className="w-full bg-transparent text-[16px] text-[#111111] font-normal outline-none p-0"
               />
             </div>
