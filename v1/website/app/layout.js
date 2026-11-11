@@ -115,7 +115,7 @@ export default function RootLayout({ children }) {
         {/* Premium Mobile Phone Mock Frame Shell */}
         <div
           id="phone-mock-shell"
-          className="relative w-full max-w-[430px] min-h-screen sm:min-h-0 h-auto sm:h-[880px] sm:max-h-[92vh] bg-white sm:rounded-[52px] flex flex-col sm:overflow-hidden sm:transition-all sm:duration-500 z-10"
+          className="relative w-full  min-h-screen sm:min-h-0 h-auto sm:h-[880px] sm:max-h-[92vh] bg-white sm:rounded-[52px] flex flex-col sm:overflow-hidden sm:transition-all sm:duration-500 z-10"
         >
 
 

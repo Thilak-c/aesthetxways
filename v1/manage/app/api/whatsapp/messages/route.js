@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const GATEWAY_URL = 'http://localhost:10000/messages';
+    const GATEWAY_BASE = process.env.WHATSAPP_GATEWAY_URL || 'http://187.127.164.186:10000';
+    const GATEWAY_URL = `${GATEWAY_BASE}/messages`;
     
     const response = await fetch(GATEWAY_URL, {
       method: 'GET',

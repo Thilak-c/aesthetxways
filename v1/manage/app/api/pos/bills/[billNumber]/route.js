@@ -30,6 +30,8 @@ export async function GET(request, { params }) {
       bill: {
         ...bill,
         _id: String(bill._id),
+        pdfUrl: bill.pdfUrl || `/api/pos/bills/${bill.billNumber}/pdf`,
+        invoiceUrl: bill.invoiceUrl || bill.pdfUrl || `/api/pos/bills/${bill.billNumber}/pdf`,
       },
     });
   } catch (err) {

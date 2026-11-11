@@ -5,7 +5,8 @@ export async function POST(request) {
     const { clientId } = await request.json();
     const targetClientId = clientId || '7033769997';
 
-    const GATEWAY_URL = 'http://localhost:10000/disconnect';
+    const GATEWAY_BASE = process.env.WHATSAPP_GATEWAY_URL || 'http://187.127.164.186:10000';
+    const GATEWAY_URL = `${GATEWAY_BASE}/disconnect`;
     
     const response = await fetch(GATEWAY_URL, {
       method: 'POST',

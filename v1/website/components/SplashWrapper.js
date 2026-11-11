@@ -47,7 +47,7 @@ export default function SplashWrapper({ children }) {
   const [progress, setProgress] = useState(0);
 
   const pathname = usePathname();
-  const isCartOrProduct = pathname ? (pathname.includes('/cart') || pathname.includes('/product')) : false;
+  const isCartOrProduct = pathname ? (pathname.includes('/cart') || pathname.includes('/product') || pathname.startsWith('/bill')) : false;
 
   useEffect(() => {
     let interval;

@@ -85,6 +85,9 @@ export async function GET(request) {
     const billsHistory = billsHistoryRaw.map((b) => ({
       ...b,
       _id: String(b._id),
+      isEdited: Boolean(b.isEdited || b.updatedAt),
+      pdfUrl: b.pdfUrl || `/api/pos/bills/${b.billNumber}/pdf`,
+      invoiceUrl: b.invoiceUrl || b.pdfUrl || `/api/pos/bills/${b.billNumber}/pdf`,
     }));
 
     return NextResponse.json({
@@ -119,6 +122,7 @@ export async function POST(request) {
       discountAmount = 0,
       discountType = 'flat',
       tax = 0,
+      roundOff = 0,
       total = 0,
       paymentMethod = 'cash',
       splitDetails,
@@ -219,6 +223,8 @@ export async function POST(request) {
     }
 
     // 3. Insert bill in MongoDB "bills" collection
+    const pdfUrl = `/api/pos/bills/${billNumber}/pdf`;
+
     const billDocument = {
       billNumber,
       items: cleanItems,
@@ -230,9 +236,17 @@ export async function POST(request) {
       discountAmount: Number(discountAmount) || 0,
       discountType: discountType || (discountAmount > 0 ? 'percentage' : undefined),
       tax: Number(tax) || 0,
+      roundOff: Number(roundOff) || 0,
       total: Number(total) || 0,
       paymentMethod,
       splitDetails: splitDetails || undefined,
+      branch: body.branch || 'patna',
+      storeName: body.storeName || undefined,
+      storeAddress: body.storeAddress || undefined,
+      storePhone: body.storePhone || undefined,
+      upiId: body.upiId || undefined,
+      pdfUrl,
+      invoiceUrl: pdfUrl,
       createdAt: nowIso,
       createdBy: createdBy || 'POS Cashier',
     };
@@ -300,6 +314,7 @@ export async function PUT(request) {
       discountAmount = 0,
       discountType = 'flat',
       tax = 0,
+      roundOff = 0,
       total = 0,
       paymentMethod = 'cash',
       splitDetails,
@@ -338,9 +353,18 @@ export async function PUT(request) {
       discountAmount: Number(discountAmount) || 0,
       discountType: discountType || (discountAmount > 0 ? 'percentage' : undefined),
       tax: Number(tax) || 0,
+      roundOff: Number(roundOff) || 0,
       total: Number(total) || 0,
       paymentMethod,
       splitDetails: splitDetails || undefined,
+      pdfUrl: `/api/pos/bills/${billNumber}/pdf`,
+      invoiceUrl: `/api/pos/bills/${billNumber}/pdf`,
+      ...(body.branch ? { branch: body.branch } : {}),
+      ...(body.storeName ? { storeName: body.storeName } : {}),
+      ...(body.storeAddress ? { storeAddress: body.storeAddress } : {}),
+      ...(body.storePhone ? { storePhone: body.storePhone } : {}),
+      ...(body.upiId ? { upiId: body.upiId } : {}),
+      isEdited: true,
       updatedAt: new Date().toISOString(),
       updatedBy: updatedBy || 'Admin',
     };

@@ -3,12 +3,15 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 import { getCartItems } from './cart/cartStore';
 import LoginModal from './auth/LoginModal';
 
 export default function Header() {
+  const pathname = usePathname();
+  if (pathname?.startsWith('/bill')) return null;
+
   const [cartCount, setCartCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);

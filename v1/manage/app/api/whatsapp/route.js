@@ -18,7 +18,8 @@ export async function POST(request) {
       cleanedPhone = '91' + cleanedPhone;
     }
 
-    const GATEWAY_URL = 'http://localhost:10000/send';
+    const GATEWAY_BASE = process.env.WHATSAPP_GATEWAY_URL || 'http://187.127.164.186:10000';
+    const GATEWAY_URL = `${GATEWAY_BASE}/send`;
     
     // Forward payload to the WhatsApp Gateway securely
     const response = await fetch(GATEWAY_URL, {

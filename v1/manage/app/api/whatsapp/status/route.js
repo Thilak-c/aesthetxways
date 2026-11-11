@@ -5,7 +5,8 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get('clientId') || '7033769997';
 
-    const GATEWAY_URL = `http://localhost:10000/status?clientId=${clientId}`;
+    const GATEWAY_BASE = process.env.WHATSAPP_GATEWAY_URL || 'http://187.127.164.186:10000';
+    const GATEWAY_URL = `${GATEWAY_BASE}/status?clientId=${clientId}`;
     const API_KEY = process.env.WHATSAPP_API_KEY || 'Narzo50pro@gmail.com';
 
     let response = await fetch(GATEWAY_URL, {
@@ -20,7 +21,7 @@ export async function GET(request) {
     if (response.status === 404) {
       // Auto-register session if not active or initialized in gateway memory
       console.log(`[Next.js API] Client session ${clientId} not found on gateway. Triggering auto-registration...`);
-      const registerRes = await fetch('http://localhost:10000/register', {
+      const registerRes = await fetch(`${GATEWAY_BASE}/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

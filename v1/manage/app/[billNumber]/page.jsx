@@ -71,8 +71,8 @@ export default function DigitalBillPage() {
         return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
     };
 
-    // Fallback static PDF url
-    const pdfUrl = `/uploads/bills/${billNumber}.pdf`;
+    // Dynamic PDF url
+    const pdfUrl = bill?.pdfUrl || `/api/pos/bills/${billNumber}/pdf?download=1`;
 
     // Calculate tax breakdown (18% inclusive)
     const subtotal = bill?.subtotal ?? 0;
@@ -165,12 +165,16 @@ export default function DigitalBillPage() {
                 {/* 1. Header Boutique Logo Brand */}
                 <div className="text-center space-y-1 mb-0.5">
                     <div className="flex justify-center">
-                        <img src="logo_t.svg" alt="AesthetX Ways" className="h-12 w-auto object-contain" />
+                        <img src="/logo_t.svg" alt="AesthetX Ways" className="h-12 w-auto object-contain" />
                     </div>
                     <div className="space-y-0.5">
-                        <h1 className="text-[25px] font-lovelo uppercase text-slate-955 mt-3 leading-none">AESTHETX WAYS</h1>
+                        <h1 className="text-[25px] font-lovelo uppercase text-slate-955 mt-3 leading-none">
+                            {bill?.branch && String(bill.branch).toLowerCase() === 'gaya' ? 'AESTHETX WAYS (GAYA)' : 'AESTHETX WAYS (PATNA)'}
+                        </h1>
                         <p className="text-[9px] font-mono text-slate-400 max-w-[240px] mx-auto leading-normal">
-                            Kankarbagh Colony More, Kankarbagh, Ghrounda, Patna, Bihar 800001
+                            {bill?.branch && String(bill.branch).toLowerCase() === 'gaya'
+                                ? 'Gaya Railway Station Campus Rd, Gol Bagicha, Gaya, Bihar 823002'
+                                : 'Kankarbagh Colony More, Kankarbagh, Ghrounda, Patna, Bihar 800001'}
                         </p>
                     </div>
                 </div>
@@ -263,13 +267,25 @@ export default function DigitalBillPage() {
                                     </button>
                                 ))}
                                 {rating > 0 && (
-                                    <motion.span 
-                                        initial={{ opacity: 0, x: -4 }} 
-                                        animate={{ opacity: 1, x: 0 }} 
-                                        className="text-[9px] font-mono text-emerald-400 font-bold ml-1"
-                                    >
-                                        Thank you!
-                                    </motion.span>
+                                    <div className="flex items-center gap-2 ml-1">
+                                        <motion.span 
+                                            initial={{ opacity: 0, x: -4 }} 
+                                            animate={{ opacity: 1, x: 0 }} 
+                                            className="text-[9px] font-mono text-emerald-400 font-bold"
+                                        >
+                                            Thank you!
+                                        </motion.span>
+                                        <a
+                                            href={String(bill?.branch || '').toLowerCase() === 'gaya'
+                                                ? 'https://search.google.com/local/writereview?placeid=ChIJ15OdAgAr8zkRvzNUY2o324E'
+                                                : 'https://search.google.com/local/writereview?placeid=ChIJZSX8QQBZ7TkRVKYOUyR8pTE'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[9px] font-mono font-bold text-amber-300 underline hover:text-amber-200"
+                                        >
+                                            Review on Google ↗
+                                        </a>
+                                    </div>
                                 )}
                             </div>
                         </div>

@@ -445,7 +445,7 @@ export default function WhatsAppPage() {
                           required
                           value={testPhone}
                           onChange={(e) => setTestPhone(e.target.value.replace(/\D/g, ""))}
-                          placeholder="9693733147"
+                          placeholder="7033769997"
                           className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-slate-400 focus:outline-none rounded-2xl text-xs font-mono font-bold text-slate-800 focus:ring-0 placeholder-slate-300"
                         />
                       </div>

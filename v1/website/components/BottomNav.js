@@ -8,6 +8,8 @@ import { gsap } from 'gsap';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  if (pathname?.startsWith('/bill')) return null;
+
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);

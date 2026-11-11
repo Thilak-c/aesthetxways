@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function SiteStatusGate({ children }) {
+  const pathname = usePathname();
   const [siteStatus, setSiteStatus] = useState('open');
   const [statusMessage, setStatusMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -43,8 +45,8 @@ export default function SiteStatusGate({ children }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Show children while loading, if bypass active, if open, or if bypass hasn't been checked yet
-  if (loading || !bypassChecked || siteStatus === 'open' || bypassed) {
+  // Show children while loading, if bypass active, if open, if on bill page, or if bypass hasn't been checked yet
+  if (pathname?.startsWith('/bill') || loading || !bypassChecked || siteStatus === 'open' || bypassed) {
     return children;
   }
 

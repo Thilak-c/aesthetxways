@@ -1700,14 +1700,6 @@ function ProductsContent() {
 
   return (
     <>
-      {/* Toast */}
-      {toastMessage && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#111111] text-white text-[13px] px-4 py-2 rounded-full border border-neutral-700 flex items-center gap-2 animate-toast pointer-events-none">
-          <Check className="w-4 h-4 text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       <div className="">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center pb-5 px-2 pt-10 justify-between gap-4">
