@@ -672,15 +672,10 @@ export default function WebsiteSettings() {
                   ) : (
                     /* Phone Number 8-digit Pairing Code Option */
                     <div className="bg-white border border-gray-200 rounded-xl p-4 text-left space-y-3 shadow-2xs">
-                      <div>
-                        <h4 className="text-xs font-bold text-gray-900">Link via 8-Digit Pairing Code</h4>
-                        <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
-                          Link without scanning a QR code. OpenWA generates an 8-character pairing code to type into WhatsApp.
-                        </p>
-                      </div>
+                      
 
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">Phone Number (without &apos;+&apos; sign)</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">Phone Number</label>
                         <div className="flex gap-2">
                           <div className="flex items-center gap-1 bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-gray-700 select-none">
                             <span className="text-gray-400">+</span>
@@ -696,7 +691,7 @@ export default function WebsiteSettings() {
                             type="tel"
                             value={pairingPhone}
                             onChange={(e) => setPairingPhone(e.target.value.replace(/\D/g, "").slice(-10))}
-                            placeholder="Enter 10-digit number (e.g. 8008439762)"
+                            placeholder="Enter 10-digit number"
                             maxLength={10}
                             className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-gray-900"
                           />
@@ -709,9 +704,7 @@ export default function WebsiteSettings() {
                             {isRequestingPairingCode ? "Generating..." : "Get Code"}
                           </button>
                         </div>
-                        <p className="text-[10.5px] text-gray-500 font-mono mt-1">
-                          API Destination: <span className="font-bold text-emerald-800">{pairingCountryCode.replace(/\D/g, "") || "91"}{pairingPhone || "XXXXXXXXXX"}</span> (digits only, no &apos;+&apos; sign)
-                        </p>
+
                       </div>
 
                       {pairingCode && (
