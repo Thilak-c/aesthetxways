@@ -74,6 +74,41 @@ export default function WebsiteSettings() {
   const [showPairNew, setShowPairNew] = useState(false);
   const [newNumberInput, setNewNumberInput] = useState("");
 
+  // WhatsApp Dual Linking (QR vs Phone Pairing Code)
+  const [waLinkMode, setWaLinkMode] = useState("qr"); // "qr" or "phone"
+  const [pairingPhone, setPairingPhone] = useState("");
+  const [pairingCode, setPairingCode] = useState(null);
+  const [isRequestingPairingCode, setIsRequestingPairingCode] = useState(false);
+
+  const handleRequestPairingCode = async (e) => {
+    e?.preventDefault();
+    const phoneToPair = pairingPhone || newNumberInput || whatsappClientId;
+    if (!phoneToPair || phoneToPair.length < 10) {
+      toast.error("Please enter a valid 10-digit phone number");
+      return;
+    }
+    setIsRequestingPairingCode(true);
+    toast.loading("Generating 8-character pairing code from OpenWA...", { id: "wa-pair" });
+    try {
+      const res = await fetch("/api/whatsapp/pairing-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: whatsappClientId, phone: phoneToPair })
+      });
+      const data = await res.json();
+      if (data.success && data.pairingCode) {
+        setPairingCode(data.pairingCode);
+        toast.success(`Pairing code received: ${data.pairingCode}`, { id: "wa-pair", duration: 8000 });
+      } else {
+        toast.error(data.error || "Failed to generate pairing code", { id: "wa-pair" });
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to contact gateway", { id: "wa-pair" });
+    } finally {
+      setIsRequestingPairingCode(false);
+    }
+  };
+
   // Test Message Modal State
   const [showTestModal, setShowTestModal] = useState(false);
   const [testPhone, setTestPhone] = useState("");
@@ -505,18 +540,20 @@ export default function WebsiteSettings() {
               )}
             </div>
 
-            {/* QR Code Scan Area (Dynamic display if inactive / qr required) */}
-            <div className="lg:col-span-5 bg-[#fcfdfd] border border-gray-200 rounded-xl p-5 flex flex-col items-center justify-center text-center min-h-[260px] shadow-xs">
+            {/* WhatsApp Device Pairing Card (Dual Mode: QR Code / Phone Pairing Code) */}
+            <div className="lg:col-span-5 bg-[#fcfdfd] border border-gray-200 rounded-xl p-5 flex flex-col items-center justify-center text-center min-h-[300px] shadow-xs">
               {waStatus.state === "READY" ? (
-                <div className="space-y-3 py-4">
+                <div className="space-y-3 py-4 w-full">
                   <div className="w-14 h-14 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
                     <ShieldCheck size={28} />
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-900 text-sm">Session Is Live & Authenticated</h4>
-                    <p className="text-xs text-gray-500 max-w-xs mt-1">
+                    <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1">
                       WhatsApp gateway is actively monitoring and ready to dispatch receipts from{" "}
-                      <span className="font-mono text-emerald-700 font-bold">+{whatsappClientId}</span>.
+                      <span className="font-mono text-emerald-700 font-bold">
+                        {waStatus.clientInfo?.number ? `+${waStatus.clientInfo.number}` : `+${whatsappClientId}`}
+                      </span>.
                     </p>
                   </div>
                   <button
@@ -527,55 +564,132 @@ export default function WebsiteSettings() {
                     <Send size={12} className="text-emerald-600" /> Send Test Invoice Ping
                   </button>
                 </div>
-              ) : waStatus.qrBase64 ? (
-                <div className="space-y-3">
-                  <div className="bg-white p-3 rounded-xl inline-block shadow-md border border-gray-200 mx-auto">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={waStatus.qrBase64}
-                      alt="WhatsApp QR Code"
-                      className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
-                    />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-amber-800 text-sm flex items-center justify-center gap-1.5">
-                      <QrCode size={15} />
-                      Scan to Link WhatsApp
-                    </h4>
-                    <p className="text-[11px] text-gray-600 max-w-xs mt-1 leading-relaxed">
-                      1. Open WhatsApp on your phone<br />
-                      2. Tap <strong>Linked Devices → Link a device</strong><br />
-                      3. Scan this QR code
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-center gap-2 pt-1 font-mono text-[11px] text-gray-500">
-                    <RefreshCw size={11} className="animate-spin text-amber-600" />
-                    <span>Auto-checking pairing status every 3s...</span>
-                  </div>
-                </div>
               ) : (
-                <div className="space-y-3 py-6">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500">
-                    <QrCode size={24} />
+                <div className="w-full space-y-4">
+                  {/* Mode Selector Tabs */}
+                  <div className="flex bg-gray-100 p-1 rounded-lg max-w-xs mx-auto">
+                    <button
+                      type="button"
+                      onClick={() => setWaLinkMode("qr")}
+                      className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${
+                        waLinkMode === "qr"
+                          ? "bg-white text-gray-900 shadow-2xs"
+                          : "text-gray-500 hover:text-gray-900"
+                      }`}
+                    >
+                      Scan QR Code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWaLinkMode("phone")}
+                      className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${
+                        waLinkMode === "phone"
+                          ? "bg-white text-gray-900 shadow-2xs"
+                          : "text-gray-500 hover:text-gray-900"
+                      }`}
+                    >
+                      Phone Code
+                    </button>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-gray-800 text-sm">
-                      {waStatus.state === "INITIALIZING" ? "Initializing Gateway..." : "Session Inactive"}
-                    </h4>
-                    <p className="text-xs text-gray-500 max-w-xs mt-1">
-                      {waStatus.state === "INITIALIZING"
-                        ? "Connecting to Puppeteer WhatsApp instance. QR code will appear in seconds..."
-                        : "Click below to request a new QR link code."}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => fetchWhatsAppStatus(whatsappClientId)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs"
-                  >
-                    <RefreshCw size={12} />
-                    Generate QR Code
-                  </button>
+
+                  {waLinkMode === "qr" ? (
+                    waStatus.qrBase64 ? (
+                      <div className="space-y-3">
+                        <div className="bg-white p-3 rounded-xl inline-block shadow-md border border-gray-200 mx-auto">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={waStatus.qrBase64}
+                            alt="WhatsApp QR Code"
+                            className="w-48 h-48 sm:w-56 sm:h-56 object-contain mx-auto"
+                          />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-amber-800 text-sm flex items-center justify-center gap-1.5">
+                            <QrCode size={15} />
+                            Scan to Link WhatsApp
+                          </h4>
+                          <p className="text-[11px] text-gray-600 max-w-xs mx-auto mt-1 leading-relaxed">
+                            1. Open WhatsApp on your phone<br />
+                            2. Tap <strong>Linked Devices → Link a device</strong><br />
+                            3. Scan this QR code
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 pt-1 font-mono text-[11px] text-gray-500">
+                          <RefreshCw size={11} className="animate-spin text-amber-600" />
+                          <span>Auto-checking pairing status every 3s...</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 py-6">
+                        <div className="w-12 h-12 mx-auto rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500">
+                          <QrCode size={24} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-sm">
+                            {waStatus.state === "INITIALIZING" ? "Initializing OpenWA Gateway..." : "Session Inactive"}
+                          </h4>
+                          <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1">
+                            {waStatus.state === "INITIALIZING"
+                              ? "Connecting to WhatsApp engine. QR code will appear in seconds..."
+                              : "Click below to generate a new live QR code."}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => fetchWhatsAppStatus(whatsappClientId)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs"
+                        >
+                          <RefreshCw size={12} />
+                          Generate QR Code
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    /* Phone Number 8-digit Pairing Code Option */
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 text-left space-y-3 shadow-2xs">
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-900">Link via 8-Digit Pairing Code</h4>
+                        <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                          Link without scanning a QR code. OpenWA generates an 8-character pairing code to type into WhatsApp.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">Phone Number</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={pairingPhone || newNumberInput || whatsappClientId}
+                            onChange={(e) => setPairingPhone(e.target.value)}
+                            placeholder="e.g. 918008439762"
+                            className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-900 focus:outline-none focus:bg-white focus:border-gray-900"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleRequestPairingCode}
+                            disabled={isRequestingPairingCode}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {isRequestingPairingCode ? "Generating..." : "Get Code"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {pairingCode && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-center space-y-1.5">
+                          <span className="text-[9px] font-bold uppercase text-emerald-800 tracking-wider block">Your 8-Digit WhatsApp Pairing Code</span>
+                          <div className="font-mono text-xl font-black text-emerald-700 tracking-widest bg-white py-1 px-3 rounded-md inline-block border border-emerald-200 shadow-2xs">
+                            {pairingCode.length === 8 ? `${pairingCode.slice(0, 4)}-${pairingCode.slice(4)}` : pairingCode}
+                          </div>
+                          <p className="text-[10px] text-emerald-800 leading-normal">
+                            1. Open WhatsApp &rarr; <strong>Settings</strong> &rarr; <strong>Linked Devices</strong><br />
+                            2. Tap <strong>Link a device</strong> &rarr; <strong>Link with phone number instead</strong><br />
+                            3. Enter this code on your phone
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
