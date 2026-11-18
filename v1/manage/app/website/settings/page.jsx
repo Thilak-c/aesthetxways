@@ -274,7 +274,7 @@ export default function WebsiteSettings() {
 
   // Disconnect / Purge Session
   const handleDisconnect = async () => {
-    if (!confirm(`Are you sure you want to disconnect & purge WhatsApp session ${whatsappClientId}?`)) {
+    if (!confirm(`Are you sure you want to delete this WhatsApp connection? This will disconnect the current number and allow you to pair a new one.`)) {
       return;
     }
     setIsDisconnecting(true);
@@ -286,8 +286,19 @@ export default function WebsiteSettings() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("Session disconnected and purged successfully");
-        await fetchWhatsAppStatus(whatsappClientId);
+        toast.success("WhatsApp connection deleted! You can now link a new number.");
+        setPairingCode(null);
+        setShowPairNew(true);
+        setWaStatus({
+          loading: true,
+          state: "INITIALIZING",
+          authenticated: false,
+          clientInfo: null,
+          qrBase64: null,
+          qrCodeAvailable: false,
+          error: null,
+        });
+        await fetchWhatsAppStatus(whatsappClientId, false);
       } else {
         toast.error(data.error || "Failed to disconnect session");
       }
@@ -464,7 +475,30 @@ export default function WebsiteSettings() {
                 <span>Send Test</span>
               </button>
 
-            
+              <button
+                type="button"
+                onClick={() => {
+                  if (waStatus.state === "READY") {
+                    handleDisconnect();
+                  } else {
+                    setShowPairNew(!showPairNew);
+                  }
+                }}
+                disabled={isDisconnecting}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
+                title="Delete Connection or Change Phone Number"
+              >
+                <Trash2 size={13} className={isDisconnecting ? "animate-spin text-rose-600" : "text-rose-600"} />
+                <span>
+                  {isDisconnecting
+                    ? "Disconnecting..."
+                    : waStatus.state === "READY"
+                    ? "Delete Connection"
+                    : showPairNew
+                    ? "Close"
+                    : "Change Number"}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -511,7 +545,7 @@ export default function WebsiteSettings() {
             {/* WhatsApp Device Pairing Card (Dual Mode: QR Code / Phone Pairing Code) */}
             <div className="lg:col-span-5 bg-[#fcfdfd] border border-gray-200 rounded-xl p-5 flex flex-col items-center justify-center text-center min-h-[300px] shadow-xs">
               {waStatus.state === "READY" ? (
-                <div className="space-y-3 py-4 w-full">
+                <div className="space-y-4 py-4 w-full">
                   <div className="w-14 h-14 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
                     <ShieldCheck size={28} />
                   </div>
@@ -524,13 +558,25 @@ export default function WebsiteSettings() {
                       </span>.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowTestModal(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <Send size={12} className="text-emerald-600" /> Send Test Invoice Ping
-                  </button>
+                  <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setShowTestModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 transition-colors shadow-2xs cursor-pointer"
+                    >
+                      <Send size={12} className="text-emerald-600" /> Send Test Invoice Ping
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDisconnect}
+                      disabled={isDisconnecting}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                      title="Delete connection to pair a different WhatsApp number"
+                    >
+                      <Trash2 size={12} className={isDisconnecting ? "animate-spin text-rose-600" : "text-rose-600"} />
+                      <span>{isDisconnecting ? "Deleting..." : "Delete Connection / Change Number"}</span>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="w-full space-y-4">
