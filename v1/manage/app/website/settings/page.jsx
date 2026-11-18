@@ -76,29 +76,35 @@ export default function WebsiteSettings() {
 
   // WhatsApp Dual Linking (QR vs Phone Pairing Code)
   const [waLinkMode, setWaLinkMode] = useState("qr"); // "qr" or "phone"
+  const [pairingCountryCode, setPairingCountryCode] = useState("91");
   const [pairingPhone, setPairingPhone] = useState("");
   const [pairingCode, setPairingCode] = useState(null);
   const [isRequestingPairingCode, setIsRequestingPairingCode] = useState(false);
 
   const handleRequestPairingCode = async (e) => {
     e?.preventDefault();
-    const phoneToPair = pairingPhone || newNumberInput || whatsappClientId;
-    if (!phoneToPair || phoneToPair.length < 10) {
+    const digitsOnly = pairingPhone.replace(/\D/g, "");
+    if (!digitsOnly || digitsOnly.length < 10) {
       toast.error("Please enter a valid 10-digit phone number");
       return;
     }
+    const last10 = digitsOnly.slice(-10);
+    const country = pairingCountryCode.replace(/\D/g, "") || "91";
+    // Construct digits-only international format without '+' (e.g. 918008439762)
+    const fullPhoneNumber = `${country}${last10}`;
+
     setIsRequestingPairingCode(true);
-    toast.loading("Generating 8-character pairing code from OpenWA...", { id: "wa-pair" });
+    toast.loading(`Requesting pairing code for ${fullPhoneNumber}...`, { id: "wa-pair" });
     try {
       const res = await fetch("/api/whatsapp/pairing-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: whatsappClientId, phone: phoneToPair })
+        body: JSON.stringify({ clientId: whatsappClientId, phone: fullPhoneNumber })
       });
       const data = await res.json();
       if (data.success && data.pairingCode) {
         setPairingCode(data.pairingCode);
-        toast.success(`Pairing code received: ${data.pairingCode}`, { id: "wa-pair", duration: 8000 });
+        toast.success(`Pairing code received: ${data.pairingCode}`, { id: "wa-pair", duration: 12000 });
         fetchWhatsAppStatus(whatsappClientId, true);
       } else {
         toast.error(data.error || "Failed to generate pairing code", { id: "wa-pair" });
@@ -674,24 +680,38 @@ export default function WebsiteSettings() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">Phone Number</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">Phone Number (without &apos;+&apos; sign)</label>
                         <div className="flex gap-2">
+                          <div className="flex items-center gap-1 bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-gray-700 select-none">
+                            <span className="text-gray-400">+</span>
+                            <input
+                              type="text"
+                              value={pairingCountryCode}
+                              onChange={(e) => setPairingCountryCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                              placeholder="91"
+                              className="w-7 bg-transparent text-xs font-mono font-bold text-gray-900 focus:outline-none text-center"
+                            />
+                          </div>
                           <input
-                            type="text"
-                            value={pairingPhone || newNumberInput || whatsappClientId}
-                            onChange={(e) => setPairingPhone(e.target.value)}
-                            placeholder="e.g. 918008439762"
-                            className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-900 focus:outline-none focus:bg-white focus:border-gray-900"
+                            type="tel"
+                            value={pairingPhone}
+                            onChange={(e) => setPairingPhone(e.target.value.replace(/\D/g, "").slice(-10))}
+                            placeholder="Enter 10-digit number (e.g. 8008439762)"
+                            maxLength={10}
+                            className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-gray-900"
                           />
                           <button
                             type="button"
                             onClick={handleRequestPairingCode}
-                            disabled={isRequestingPairingCode}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                            disabled={isRequestingPairingCode || pairingPhone.length < 10}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 shrink-0"
                           >
                             {isRequestingPairingCode ? "Generating..." : "Get Code"}
                           </button>
                         </div>
+                        <p className="text-[10.5px] text-gray-500 font-mono mt-1">
+                          API Destination: <span className="font-bold text-emerald-800">{pairingCountryCode.replace(/\D/g, "") || "91"}{pairingPhone || "XXXXXXXXXX"}</span> (digits only, no &apos;+&apos; sign)
+                        </p>
                       </div>
 
                       {pairingCode && (
