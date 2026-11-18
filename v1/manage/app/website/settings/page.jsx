@@ -99,6 +99,7 @@ export default function WebsiteSettings() {
       if (data.success && data.pairingCode) {
         setPairingCode(data.pairingCode);
         toast.success(`Pairing code received: ${data.pairingCode}`, { id: "wa-pair", duration: 8000 });
+        fetchWhatsAppStatus(whatsappClientId, true);
       } else {
         toast.error(data.error || "Failed to generate pairing code", { id: "wa-pair" });
       }
@@ -154,66 +155,114 @@ export default function WebsiteSettings() {
 
   // Fetch WhatsApp Gateway Status
   const fetchWhatsAppStatus = useCallback(
-    async (targetId = whatsappClientId) => {
+    async (targetId = whatsappClientId, isSilent = false) => {
       if (!targetId) return;
+      if (!isSilent) {
+        setWaStatus((prev) => ({ ...prev, loading: true }));
+      }
       try {
-        const res = await fetch(`/api/whatsapp/status?clientId=${encodeURIComponent(targetId)}`);
+        const res = await fetch(
+          `/api/whatsapp/status?clientId=${encodeURIComponent(targetId)}&_t=${Date.now()}`,
+          {
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+            },
+          }
+        );
         const data = await res.json();
         if (data.success) {
-          setWaStatus({
-            loading: false,
-            state: data.state || "DISCONNECTED",
-            authenticated: Boolean(data.authenticated),
-            clientInfo: data.clientInfo || null,
-            qrBase64: data.qrBase64 || null,
-            qrCodeAvailable: Boolean(data.qrCodeAvailable),
-            error: null,
+          const nextState = data.state || "DISCONNECTED";
+          const nextAuthenticated = Boolean(data.authenticated);
+          const nextQrAvailable = Boolean(data.qrCodeAvailable);
+          const nextQrBase64 = data.qrBase64 || null;
+          const nextClientInfo = data.clientInfo || null;
+
+          setWaStatus((prev) => {
+            // Check if status changed to prevent redundant re-renders
+            if (
+              !prev.loading &&
+              prev.state === nextState &&
+              prev.authenticated === nextAuthenticated &&
+              prev.qrCodeAvailable === nextQrAvailable &&
+              prev.qrBase64 === nextQrBase64 &&
+              prev.clientInfo?.number === nextClientInfo?.number &&
+              prev.clientInfo?.pushname === nextClientInfo?.pushname
+            ) {
+              return prev;
+            }
+
+            return {
+              loading: false,
+              state: nextState,
+              authenticated: nextAuthenticated,
+              clientInfo: nextClientInfo,
+              qrBase64: nextQrBase64,
+              qrCodeAvailable: nextQrAvailable,
+              error: null,
+            };
           });
+
+          // Reset pairing code display once successfully linked
+          if (nextState === "READY") {
+            setPairingCode(null);
+          }
         } else {
-          setWaStatus((prev) => ({
+          setWaStatus((prev) => {
+            if (!prev.loading && prev.state === "DISCONNECTED" && prev.error === data.error) {
+              return prev;
+            }
+            return {
+              ...prev,
+              loading: false,
+              state: "DISCONNECTED",
+              authenticated: false,
+              error: data.error || "Gateway unreachable",
+            };
+          });
+        }
+      } catch (err) {
+        setWaStatus((prev) => {
+          if (!prev.loading && prev.state === "DISCONNECTED") return prev;
+          return {
             ...prev,
             loading: false,
             state: "DISCONNECTED",
             authenticated: false,
-            error: data.error || "Gateway unreachable",
-          }));
-        }
-      } catch (err) {
-        setWaStatus((prev) => ({
-          ...prev,
-          loading: false,
-          state: "DISCONNECTED",
-          authenticated: false,
-          error: "Connection timeout to gateway",
-        }));
+            error: "Connection timeout to gateway",
+          };
+        });
       }
     },
     [whatsappClientId]
   );
 
-  // Initial and reactive WhatsApp status check
+  // Continuous live auto-update polling (every 3 seconds)
+  // Ensures all states (READY, DISCONNECTED, QR_REQUIRED, INITIALIZING, phone pairing code)
+  // auto-update in real time without having to click refresh or reload the page.
   useEffect(() => {
-    fetchWhatsAppStatus(whatsappClientId);
-  }, [whatsappClientId, fetchWhatsAppStatus]);
+    // Initial fetch (shows initial loading state)
+    fetchWhatsAppStatus(whatsappClientId, false);
 
-  // Auto-polling when waiting for QR scan or initializing
-  useEffect(() => {
-    let timer = null;
-    const isPairing =
-      waStatus.state === "QR_REQUIRED" ||
-      waStatus.state === "INITIALIZING" ||
-      waStatus.qrCodeAvailable;
+    // Continuous background poll every 3 seconds (silent, no layout flicker)
+    const interval = setInterval(() => {
+      fetchWhatsAppStatus(whatsappClientId, true);
+    }, 3000);
 
-    if (isPairing) {
-      timer = setInterval(() => {
-        fetchWhatsAppStatus(whatsappClientId);
-      }, 3500);
-    }
+    // Immediate update when user refocuses or returns to tab
+    const handleFocus = () => {
+      fetchWhatsAppStatus(whatsappClientId, true);
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
 
     return () => {
-      if (timer) clearInterval(timer);
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
     };
-  }, [waStatus.state, waStatus.qrCodeAvailable, whatsappClientId, fetchWhatsAppStatus]);
+  }, [whatsappClientId, fetchWhatsAppStatus]);
 
   // Manual Refresh WhatsApp
   const handleRefreshWhatsApp = async () => {
@@ -415,95 +464,14 @@ export default function WebsiteSettings() {
                 <span>Send Test</span>
               </button>
 
-              <a
-                href="http://187.127.188.196:2785/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 transition-colors shadow-2xs"
-              >
-                <span>Console</span>
-                <ExternalLink size={12} className="text-gray-400" />
-              </a>
+            
             </div>
           </div>
 
           {/* Active Session Card (White Theme) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-7 space-y-4">
-              <div className="bg-[#fcfdfd] border border-gray-200 rounded-xl p-5 relative shadow-xs">
-                {/* Account Number & Status Pill */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="font-mono text-xl sm:text-2xl font-black text-gray-900 tracking-wide">
-                    {whatsappClientId}
-                  </div>
-
-                  <div>
-                    {waStatus.loading ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold font-mono bg-gray-100 text-gray-600 border border-gray-200">
-                        <RefreshCw size={11} className="animate-spin text-gray-500" />
-                        CHECKING...
-                      </span>
-                    ) : waStatus.state === "READY" ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-extrabold tracking-wider font-mono bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        READY
-                      </span>
-                    ) : waStatus.state === "QR_REQUIRED" || waStatus.qrCodeAvailable ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-extrabold tracking-wider font-mono bg-amber-50 text-amber-800 border border-amber-200">
-                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                        QR SCAN REQUIRED
-                      </span>
-                    ) : waStatus.state === "INITIALIZING" ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-extrabold tracking-wider font-mono bg-blue-50 text-blue-700 border border-blue-200">
-                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                        INITIALIZING...
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-extrabold tracking-wider font-mono bg-red-50 text-red-700 border border-red-200">
-                        <span className="w-2 h-2 rounded-full bg-red-500" />
-                        DISCONNECTED
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Account Details */}
-                <div className="space-y-1.5 text-xs sm:text-sm font-mono border-t border-gray-100 pt-3 text-gray-700">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 font-semibold w-16">Name:</span>
-                    <span className="font-bold text-gray-900">
-                      {waStatus.clientInfo?.pushname || "Aesthetx Ways WhatsApp Gateway"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 font-semibold w-16">Phone:</span>
-                    <span className="font-bold text-emerald-700">
-                      {waStatus.clientInfo?.number ? `+${waStatus.clientInfo.number}` : `+91${whatsappClientId}`}
-                    </span>
-                  </div>
-                 
-                </div>
-
-                {/* Session Action Buttons */}
-                <div className="flex items-center gap-3 mt-5 pt-3 border-t border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => setShowPairNew(!showPairNew)}
-                    className="flex-1 py-2 px-3 rounded-lg text-xs font-bold font-mono uppercase tracking-wider bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 transition-colors cursor-pointer text-center"
-                  >
-                    {showPairNew ? "Cancel" : "Change / Pair Number"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleDisconnect}
-                    disabled={isDisconnecting}
-                    className="py-2 px-4 rounded-lg text-xs font-bold font-mono uppercase tracking-wider bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    {isDisconnecting ? "Purging..." : "Purge Session"}
-                  </button>
-                </div>
-              </div>
+          <div className="grid gap-6 items-start">
+            <div className="space-y-4">
+           
 
               {/* Pair New Number Form Collapse */}
               {showPairNew && (
