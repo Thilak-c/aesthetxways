@@ -650,7 +650,12 @@ export default function WebsiteSettings() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => fetchWhatsAppStatus(whatsappClientId)}
+                          onClick={() => {
+                            toast.loading("Requesting live QR code...", { id: "wa-gen-qr" });
+                            fetchWhatsAppStatus(whatsappClientId, false).then(() => {
+                              toast.dismiss("wa-gen-qr");
+                            });
+                          }}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs"
                         >
                           <RefreshCw size={12} />

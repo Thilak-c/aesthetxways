@@ -55,7 +55,7 @@ export async function listSessions() {
  * Finds an existing session or provisions a new one on OpenWA
  */
 export async function getOrCreateSession(clientId = 'aesthetx-main') {
-  const cleanId = String(clientId || 'aesthetx-main').trim();
+  const cleanId = String(clientId || 'aesthetx-main').trim().replace(/[^a-zA-Z0-9-]/g, '') || 'aesthetx-main';
   const sessions = await listSessions();
 
   // Match by id, name, or phone
@@ -64,9 +64,9 @@ export async function getOrCreateSession(clientId = 'aesthetx-main') {
   );
 
   if (!session) {
-    // If not found and a session already exists, default to the first active/ready one
-    if (sessions.length > 0 && (cleanId === 'aesthetx-main' || cleanId === '7033769997')) {
-      session = sessions.find(s => s.status === 'ready') || sessions[0];
+    // If not found and a session already exists, default to the first active/ready or created one
+    if (sessions.length > 0) {
+      session = sessions.find(s => s.status === 'ready') || sessions.find(s => s.status === 'qr_ready') || sessions[0];
     }
   }
 
@@ -77,8 +77,7 @@ export async function getOrCreateSession(clientId = 'aesthetx-main') {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
-          name: cleanId,
-          engine: 'whatsapp-web.js',
+          name: cleanId.length >= 3 ? cleanId : 'aesthetx-main',
         }),
       });
       if (createRes.ok) {
@@ -93,7 +92,7 @@ export async function getOrCreateSession(clientId = 'aesthetx-main') {
   }
 
   // Start the session engine if it's currently created or stopped
-  if (session && (session.status === 'created' || session.status === 'stopped' || session.status === 'disconnected')) {
+  if (session && (session.status === 'created' || session.status === 'stopped')) {
     try {
       const startRes = await fetch(`${GATEWAY_BASE}/api/sessions/${session.id}/start`, {
         method: 'POST',
@@ -224,18 +223,63 @@ export async function getPairingCode(clientId, phone) {
 }
 
 /**
- * Disconnects and stops a session on OpenWA
+ * Disconnects, logs out, and purges a WhatsApp session from OpenWA
  */
 export async function disconnectSession(clientId) {
-  const session = await getOrCreateSession(clientId);
-  if (!session) return { success: true };
+  const sessions = await listSessions();
+  const cleanId = String(clientId || '').trim().replace(/[^a-zA-Z0-9-]/g, '');
 
-  const res = await fetch(`${GATEWAY_BASE}/api/sessions/${session.id}/stop`, {
-    method: 'POST',
-    headers: getHeaders(),
-  });
+  let session = sessions.find(
+    (s) => s.id === cleanId || s.name === cleanId || s.phone === cleanId || s.phone === cleanPhoneNumber(cleanId)
+  );
 
-  return { success: res.ok };
+  if (!session && sessions.length > 0) {
+    session = sessions.find((s) => s.status === 'ready') || sessions[0];
+  }
+
+  if (session) {
+    // 1. Send engine logout to unpair WhatsApp and clear auth tokens
+    try {
+      await fetch(`${GATEWAY_BASE}/api/sessions/${session.id}/logout`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+    } catch (e) {
+      console.warn(`[OpenWA logout warning]: ${e.message}`);
+    }
+
+    // 2. Delete the session completely so old credentials cannot linger on disk
+    try {
+      await fetch(`${GATEWAY_BASE}/api/sessions/${session.id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+    } catch (e) {
+      console.warn(`[OpenWA delete session warning]: ${e.message}`);
+    }
+  }
+
+  // 3. Immediately provision a fresh, clean session waiting for a new QR / phone pairing
+  try {
+    const newName = cleanId.length >= 3 ? cleanId : 'aesthetx-main';
+    const createRes = await fetch(`${GATEWAY_BASE}/api/sessions`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ name: newName }),
+    });
+    if (createRes.ok) {
+      const newSession = await createRes.json();
+      // Start the new clean session
+      await fetch(`${GATEWAY_BASE}/api/sessions/${newSession.id}/start`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+    }
+  } catch (e) {
+    console.error(`[OpenWA re-provision clean session error]: ${e.message}`);
+  }
+
+  return { success: true };
 }
 
 /**
