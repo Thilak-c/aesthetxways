@@ -40,6 +40,41 @@ export default function WhatsAppPage() {
   const [countryCode, setCountryCode] = useState("91");
   const [testMessage, setTestMessage] = useState("");
   
+  // Pairing Code via Phone Number
+  const [linkMode, setLinkMode] = useState("qr"); // "qr" or "phone"
+  const [pairingPhone, setPairingPhone] = useState("");
+  const [pairingCode, setPairingCode] = useState(null);
+  const [requestingPairingCode, setRequestingPairingCode] = useState(false);
+
+  const handleRequestPairingCode = async (e) => {
+    e?.preventDefault();
+    const phoneToPair = pairingPhone || inputClientId;
+    if (!phoneToPair || phoneToPair.length < 10) {
+      toast.error("Please enter a valid 10-digit phone number");
+      return;
+    }
+    setRequestingPairingCode(true);
+    toast.loading("Generating 8-character pairing code from OpenWA...", { id: "wa-pair" });
+    try {
+      const res = await fetch("/api/whatsapp/pairing-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, phone: phoneToPair })
+      });
+      const data = await res.json();
+      if (data.success && data.pairingCode) {
+        setPairingCode(data.pairingCode);
+        toast.success(`Pairing code received: ${data.pairingCode}`, { id: "wa-pair", duration: 8000 });
+      } else {
+        toast.error(data.error || "Failed to generate pairing code", { id: "wa-pair" });
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to contact gateway", { id: "wa-pair" });
+    } finally {
+      setRequestingPairingCode(false);
+    }
+  };
+  
   const [loading, setLoading] = useState(true);
   const [sendingTest, setSendingTest] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -293,33 +328,107 @@ export default function WhatsAppPage() {
                             </span>
                           </div>
                         </div>
-                      ) : statusData.state === "QR_REQUIRED" && statusData.qrBase64 ? (
-                        <div className="flex flex-col items-center justify-center py-4 text-center">
-                          <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-2xl text-amber-700 flex items-start gap-2.5 text-left mb-6 max-w-md w-full">
-                            <Info className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" />
-                            <div className="text-[10.5px] leading-normal font-semibold">
-                              <strong>Device Linking Required:</strong> Please open WhatsApp on your phone, navigate to <strong>Linked Devices</strong>, and scan the QR code below.
-                            </div>
+                      ) : (
+                        <div className="space-y-5">
+                          {/* Linking Mode Selector Tabs */}
+                          <div className="flex bg-slate-100 p-1 rounded-xl max-w-sm mx-auto">
+                            <button
+                              type="button"
+                              onClick={() => setLinkMode("qr")}
+                              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                                linkMode === "qr"
+                                  ? "bg-white text-slate-800 shadow-sm"
+                                  : "text-slate-500 hover:text-slate-800"
+                              }`}
+                            >
+                              Scan QR Code
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setLinkMode("phone")}
+                              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                                linkMode === "phone"
+                                  ? "bg-white text-slate-800 shadow-sm"
+                                  : "text-slate-500 hover:text-slate-800"
+                              }`}
+                            >
+                              Link with Phone Number
+                            </button>
                           </div>
 
-                          <div className="relative p-3 bg-white border border-slate-200 shadow-lg rounded-2xl max-w-[240px] w-full aspect-square flex items-center justify-center">
-                            <img src={statusData.qrBase64} alt="QR Scanner" className="w-full h-full object-contain" />
-                            <div className="absolute inset-x-3 top-0 bottom-0 overflow-hidden pointer-events-none">
-                              <div className="h-0.5 w-full bg-emerald-500 opacity-60 shadow-[0_0_10px_2px_rgba(16,185,129,0.7)] animate-laser absolute" />
+                          {linkMode === "qr" ? (
+                            statusData.qrBase64 ? (
+                              <div className="flex flex-col items-center justify-center py-2 text-center">
+                                <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-2xl text-amber-700 flex items-start gap-2.5 text-left mb-4 max-w-md w-full">
+                                  <Info className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" />
+                                  <div className="text-[10.5px] leading-normal font-semibold">
+                                    <strong>Device Linking Required:</strong> Please open WhatsApp on your phone, navigate to <strong>Linked Devices</strong>, and scan the QR code below.
+                                  </div>
+                                </div>
+
+                                <div className="relative p-3 bg-white border border-slate-200 shadow-lg rounded-2xl max-w-[240px] w-full aspect-square flex items-center justify-center">
+                                  <img src={statusData.qrBase64} alt="QR Scanner" className="w-full h-full object-contain" />
+                                </div>
+                                
+                                <span className="text-[9px] font-bold text-slate-400 mt-4 tracking-widest uppercase">
+                                  SCAN WITHIN WHATSAPP TERMINAL
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
+                                <div className="w-12 h-12 rounded-full border-3 border-slate-200 border-t-slate-800 animate-spin" />
+                                <div>
+                                  <h4 className="text-xs font-bold text-slate-700">Generating Session QR</h4>
+                                  <p className="text-[10px] text-slate-400 mt-0.5">Contacting OpenWA engine{dots}</p>
+                                </div>
+                              </div>
+                            )
+                          ) : (
+                            /* Link with Phone Number (Pairing Code) */
+                            <div className="max-w-md mx-auto p-5 bg-white border border-slate-200 rounded-2xl text-left space-y-4 shadow-sm">
+                              <div>
+                                <h4 className="text-xs font-bold text-slate-800">Link via 8-Digit Pairing Code</h4>
+                                <p className="text-[10.5px] text-slate-500 mt-0.5">
+                                  Enter the phone number you want to link. OpenWA will generate an 8-character code to enter on your phone.
+                                </p>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Phone Number</label>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={pairingPhone || inputClientId}
+                                    onChange={(e) => setPairingPhone(e.target.value)}
+                                    placeholder="e.g. 918008439762"
+                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:border-slate-800"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={handleRequestPairingCode}
+                                    disabled={requestingPairingCode}
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold tracking-wider transition-colors disabled:opacity-50"
+                                  >
+                                    {requestingPairingCode ? "Generating..." : "Get Code"}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {pairingCode && (
+                                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-2">
+                                  <span className="text-[10px] font-bold uppercase text-emerald-800 tracking-wider block">Your 8-Digit WhatsApp Pairing Code</span>
+                                  <div className="font-mono text-2xl font-black text-emerald-700 tracking-widest bg-white py-2 px-4 rounded-lg inline-block border border-emerald-200 shadow-xs">
+                                    {pairingCode.length === 8 ? `${pairingCode.slice(0, 4)}-${pairingCode.slice(4)}` : pairingCode}
+                                  </div>
+                                  <p className="text-[10px] text-emerald-700 leading-relaxed">
+                                    1. Open WhatsApp &rarr; <strong>Settings</strong> &rarr; <strong>Linked Devices</strong><br />
+                                    2. Tap <strong>Link a device</strong> &rarr; <strong>Link with phone number instead</strong><br />
+                                    3. Enter this code on your phone
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                          
-                          <span className="text-[9px] font-bold text-slate-400 mt-5 tracking-widest uppercase">
-                            SCAN WITHIN WHATSAPP TERMINAL
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
-                          <div className="w-12 h-12 rounded-full border-3 border-slate-200 border-t-slate-800 animate-spin" />
-                          <div>
-                            <h4 className="text-xs font-bold text-slate-700">Syncing Connection</h4>
-                            <p className="text-[10px] text-slate-400 mt-0.5">Initializing Puppeteer container assets{dots}</p>
-                          </div>
+                          )}
                         </div>
                       )}
 
@@ -330,15 +439,13 @@ export default function WhatsAppPage() {
                           <span className="text-slate-800 font-bold font-mono">{clientId}</span>
                         </div>
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-500 font-medium">Engine Port</span>
-                          <span className="text-slate-800 font-bold font-mono">:10000</span>
+                          <span className="text-slate-500 font-medium">Gateway Engine</span>
+                          <span className="text-slate-800 font-bold font-mono">OpenWA (:2785)</span>
                         </div>
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-500 font-medium">Queued Held Messages</span>
-                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono ${
-                            (statusData.queuedCount || 0) > 0 ? "bg-amber-50 text-amber-600 border border-amber-100" : "bg-slate-50 text-slate-500 border border-slate-100"
-                          }`}>
-                            {statusData.queuedCount || 0} messages pending
+                          <span className="text-slate-500 font-medium">Status</span>
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            {statusData.state}
                           </span>
                         </div>
                       </div>

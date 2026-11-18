@@ -1,37 +1,22 @@
 import { NextResponse } from 'next/server';
+import { disconnectSession } from '@/lib/openwa';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   try {
-    const { clientId } = await request.json();
-    const targetClientId = clientId || '7033769997';
+    const { clientId } = await request.json().catch(() => ({}));
+    const targetClientId = clientId || 'aesthetx-main';
 
-    const GATEWAY_BASE = process.env.WHATSAPP_GATEWAY_URL || 'http://187.127.164.186:10000';
-    const GATEWAY_URL = `${GATEWAY_BASE}/disconnect`;
-    
-    const response = await fetch(GATEWAY_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': process.env.WHATSAPP_API_KEY || 'Narzo50pro@gmail.com'
-      },
-      body: JSON.stringify({ clientId: targetClientId })
+    const result = await disconnectSession(targetClientId);
+    return NextResponse.json({
+      success: result.success,
+      message: `Session ${targetClientId} disconnected.`,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { success: false, error: data.error || 'Failed to disconnect session via gateway' },
-        { status: response.status }
-      );
-    }
-
-    return NextResponse.json({ success: true, message: data.message });
-
   } catch (error) {
     console.error('WhatsApp Proxy Disconnect Error:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal Server Error' },
+      { success: false, error: error.message || 'Internal Server Error' },
       { status: 500 }
     );
   }

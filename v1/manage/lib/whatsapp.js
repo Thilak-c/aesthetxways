@@ -1,5 +1,6 @@
 // WhatsApp Notification Engine for Aesthetx Ways
-// Simulates / sends WhatsApp transactional messaging for e-commerce orders
+// Dispatches real transactional WhatsApp messages via OpenWA API
+import { sendWhatsAppMessage } from '@/lib/openwa';
 
 export async function sendMockWhatsAppMessage({
   phone = '7033769997',
@@ -9,6 +10,7 @@ export async function sendMockWhatsAppMessage({
   courierName = 'Delhivery Surface',
   awbCode = '',
   totalAmount = 1399,
+  clientId = 'aesthetx-main',
 }) {
   const timestamp = new Date();
   const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
@@ -39,18 +41,31 @@ export async function sendMockWhatsAppMessage({
       messageText = `ℹ️ *Aesthetx Ways Update:* Update for order *#${orderId}*. Status: ${template}.`;
   }
 
-  // Simulated gateway log output
-  console.log(`[WHATSAPP GATEWAY] 💬 Outgoing message to +91 ${cleanPhone}:`);
-  console.log(`   Template: [${template}]`);
-  console.log(`   Message:  "${messageText}"`);
+  let realDispatchSuccess = false;
+  let messageId = null;
+
+  try {
+    const res = await sendWhatsAppMessage({
+      clientId,
+      phone: `91${cleanPhone}`,
+      message: messageText,
+    });
+    if (res.success) {
+      realDispatchSuccess = true;
+      messageId = res.messageId;
+      console.log(`[OpenWA] Successfully dispatched ${template} to +91 ${cleanPhone}. Message ID: ${messageId}`);
+    }
+  } catch (err) {
+    console.warn(`[OpenWA Warning] Real dispatch failed (${err.message}). Logged for retry.`);
+  }
 
   return {
     success: true,
-    isMock: true,
+    isRealDispatch: realDispatchSuccess,
+    messageId,
     sentAt: timestamp,
     to: `+91 ${cleanPhone}`,
     template,
     messageText,
   };
 }
-

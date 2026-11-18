@@ -381,7 +381,7 @@ export default function WebsiteSettings() {
               </button>
 
               <a
-                href="http://187.127.164.186:10000/status"
+                href="http://187.127.188.196:2785/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 transition-colors shadow-2xs"
