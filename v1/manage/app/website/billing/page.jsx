@@ -567,12 +567,37 @@ export default function BillingPage() {
     }
   }, [onlineNum, billNumber, storeSettings]);
 
-  // 80mm POS Thermal Receipt Trigger (@react-pdf/renderer)
+  // 80mm POS In-Browser HTML Thermal Slip Trigger (window.open)
   const executeMagnetRestroPrint = async (targetBill = null) => {
-    const targetBillNumber = targetBill?.billNumber || billNumber;
-    if (!targetBillNumber) return;
-    // Direct in-page print without opening modal popup
-    triggerDirectPdfPrint(targetBillNumber);
+    try {
+      const billToPrint = targetBill || {
+        billNumber,
+        customerName: customerInfo.name?.trim() || "Walk-in Guest",
+        customerPhone: customerInfo.phone?.trim() || "",
+        customerEmail: customerInfo.email?.trim() || "",
+        items: cart,
+        subtotal,
+        discount: effectiveDiscount,
+        discountAmount,
+        discountType,
+        tax,
+        roundOff: roundOffAmount,
+        total: grandTotal,
+        paymentMethod: computedPaymentMethod,
+        splitDetails: finalSplitDetails,
+        branch: activeBranch,
+        storeName: currentBranch?.storeName,
+        storeAddress: currentBranch?.storeAddress,
+        storePhone: currentBranch?.phone,
+        upiId: currentBranch?.upiId || "aesthetxways07@okicici",
+        createdBy: activeCashier?.name || "POS Cashier",
+        createdAt: new Date().toISOString(),
+      };
+      await executeThermalReceiptPrint(billToPrint, { storeSettings: currentBranch });
+    } catch (printErr) {
+      console.error("HTML Thermal Receipt Print Error:", printErr);
+      toast.error("Failed to open print popup. Please allow popups!");
+    }
   };
 
   // Date time formatter for history table
@@ -739,9 +764,9 @@ export default function BillingPage() {
 
         toast.success(`Bill #${authModal.billNumber} updated in MongoDB!`, { id: toastId });
 
-        // Trigger thermal receipt print and download automatically without modal popup
+        // Trigger HTML thermal receipt print automatically
         if (authModal.payload?.items?.length > 0) {
-          triggerAutoPrintAndDownload(authModal.billNumber);
+          executeThermalReceiptPrint(authModal.payload, { storeSettings: currentBranch });
         }
 
         setAuthModal({ isOpen: false, title: "", description: "", billNumber: "", actionType: "", payload: null });
@@ -975,8 +1000,32 @@ Thank you for supporting Aesthetx Ways! ❤️`;
         }
       }
 
-      // Automatically download PDF and trigger thermal print without opening modal popup
-      triggerAutoPrintAndDownload(savedBillNumber);
+      // Automatically trigger In-Browser HTML Thermal Receipt Slip popup
+      const billDataForPrint = {
+        ...result?.bill,
+        billNumber: savedBillNumber,
+        customerName: finalCustomerName,
+        customerPhone: cleanPhone,
+        customerEmail: cleanEmail,
+        items: cleanItems,
+        subtotal,
+        discount: effectiveDiscount,
+        discountAmount,
+        discountType,
+        tax,
+        roundOff: roundOffAmount,
+        total: grandTotal,
+        paymentMethod: computedPaymentMethod,
+        splitDetails: finalSplitDetails,
+        branch: activeBranch,
+        storeName: currentBranch?.storeName,
+        storeAddress: currentBranch?.storeAddress,
+        storePhone: currentBranch?.phone,
+        upiId: currentBranch?.upiId || "aesthetxways07@okicici",
+        createdBy: cashierNameStr,
+        createdAt: new Date().toISOString(),
+      };
+      executeThermalReceiptPrint(billDataForPrint, { storeSettings: currentBranch });
 
       // Reset Form State for next customer
       setEditingBill(null);
